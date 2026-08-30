@@ -1,0 +1,34 @@
+# Ownership per docs/00_MVP_PLAN.md section 4 — one owner per directory.
+# Others may read; TM2's components may be imported.
+# If you need a change outside your directory, message the owner.
+# Last matching pattern wins, so types/contract.ts stays last.
+
+# TM1 — model + policy
+/lib/**            @tm1
+/app/api/**        @tm1
+/evals/**          @tm1
+/policy/**         @tm1
+# scripts/ is split: TM1 owns the fixtures and the test harness, TM3 the seed.
+/scripts/fixtures.ts      @tm1
+/scripts/fixtures.test.ts @tm1
+/scripts/run-tests.mjs    @tm1
+
+# Docs, CI and the readme. Unowned paths report as UNOWNED in /lane.
+/docs/**           @tm1
+/README.md         @tm1
+/.github/**        @tm1
+
+# TM2 — public site
+/app/(public)/**   @tm2
+/components/ui/**  @tm2
+/app/globals.css   @tm2
+/tailwind.config.ts @tm2
+
+# TM3 — staff + call + data
+/app/(staff)/**    @tm3
+/app/call/**       @tm3
+/supabase/**       @tm3
+/scripts/seed.ts   @tm3
+
+# TM1 — frozen after Day 0. Changes need TM1 sign-off and a message in the group.
+/types/contract.ts @tm1

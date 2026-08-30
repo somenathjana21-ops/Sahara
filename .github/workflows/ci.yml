@@ -1,0 +1,122 @@
+# CI — SIH 26094 Dynamic Distress Monitoring
+#
+# Every step here is a hard failure. There is no continue-on-error, no
+# soft-warning step, and deliberately no commit-message escape hatch: a build
+# that can be waved through with [skip ci] in the subject line is not a gate.
+# If a step fails, fix the code.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: build · test · safety · scans
+    runs-on: ubuntu-latest
+
+    env:
+      # Server-only, all of them. Set these as repository secrets
+      # (Settings → Secrets and variables → Actions). Unset secrets arrive as
+      # empty strings, which will fail the build loudly rather than quietly.
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      LLM_MODEL: ${{ secrets.LLM_MODEL }}
+      STAFF_PASSCODE: ${{ secrets.STAFF_PASSCODE }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm run test
+
+      # Hard blocker. docs/SAFETY_SPEC.md — the safety set must be 100%.
+      # Fix the code. Never edit evals/safety.jsonl to make this pass.
+      - name: Safety eval (must be 100%)
+        run: npm run eval -- --set safety
+
+      # Hard blocker. CLAUDE.md rule 6 — no PII anywhere, including fixtures
+      # and seed data. Case-insensitive: a capitalised name is the same leak.
+      - name: Scan evals/ and scripts/ for PII-shaped strings
+        if: '!cancelled()'
+        shell: bash
+        run: |
+          set -uo pipefail
+          # Word boundaries on the name tokens are load-bearing: without them
+          # `devi` matches "deviation" and "device", which appear throughout the
+          # scoring explanations, and the gate fails for a non-PII reason on day
+          # one. @gmail and the phone pattern need no boundary.
+          PATTERN='\b(singh|kumar|devi|yadav|sharma|patel|reddy)\b|@gmail|\+91[0-9]{10}'
+
+          targets=()
+          for d in evals scripts; do
+            [ -d "$d" ] && targets+=("$d")
+          done
+
+          if [ ${#targets[@]} -eq 0 ]; then
+            echo "Neither evals/ nor scripts/ is present in this checkout — nothing to scan."
+            exit 0
+          fi
+
+          echo "Scanning: ${targets[*]}"
+          if grep -rEin "$PATTERN" "${targets[@]}"; then
+            echo "::error::PII-shaped strings found above. Personas are pseudonyms like A-4471 — no real-looking names, no email addresses, no phone numbers, in fixtures or seed data. See CLAUDE.md rule 6."
+            exit 1
+          fi
+          echo "Clean — no PII-shaped strings."
+
+      # Hard blocker. A server-only secret named in a client component is a
+      # secret shipped to the browser bundle. Mirrors CHECKS_TM{1,2}.md T*-A1.
+      - name: Scan client components for server-only secrets
+        if: '!cancelled()'
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          roots=()
+          for d in app components; do
+            [ -d "$d" ] && roots+=("$d")
+          done
+
+          if [ ${#roots[@]} -eq 0 ]; then
+            echo "Neither app/ nor components/ is present in this checkout — nothing to scan."
+            exit 0
+          fi
+
+          # Files carrying the 'use client' directive, single- or double-quoted.
+          client_files=$(grep -rlE "^[[:space:]]*['\"]use client['\"]" "${roots[@]}" || true)
+
+          if [ -z "$client_files" ]; then
+            echo "No 'use client' files found — nothing to scan."
+            exit 0
+          fi
+
+          echo "Client components:"
+          echo "$client_files"
+
+          if echo "$client_files" | xargs grep -nE "SERVICE_ROLE|LLM_API_KEY|STAFF_PASSCODE"; then
+            echo "::error::A client component references a server-only secret (shown above). These are read in route handlers only, and are never prefixed NEXT_PUBLIC_. See CLAUDE.md § Conventions."
+            exit 1
+          fi
+          echo "Clean — no server-only secrets in client components."
