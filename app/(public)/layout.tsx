@@ -4,6 +4,7 @@
 // that is present on EVERY screen, in the same position, reachable
 // without scrolling, always (CHECKS_TM2 T2-B4).
 
+import { Suspense } from "react";
 import "../globals.css";
 import { Instrument_Serif, Inter } from "next/font/google";
 import { LangToggle } from "@/components/ui/LangToggle";
@@ -27,7 +28,9 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         <header className="sticky top-0 z-50 flex items-center justify-between border-b border-line bg-bg/95 px-4 py-3 backdrop-blur">
           <span className="font-display text-lg">Saathi Check-in</span>
           <div className="flex items-center gap-3">
-            <LangToggle />
+                        <Suspense fallback={null}>
+              <LangToggle />
+            </Suspense>
             <TalkToPersonButton />
           </div>
         </header>

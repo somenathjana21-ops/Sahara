@@ -14,7 +14,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CrisisPanel } from "@/components/ui/CrisisPanel";
 import { Button } from "@/components/ui/Button";
-   import type { CheckinResponse } from "@/types/contract";
+import type { CheckInResponse } from "@/types/contract";
 
 // TODO: pull real question text + scoring weights from
 // docs/SCORING_AND_POLICY.md §3 before this ships — these are placeholders.
@@ -29,14 +29,14 @@ const CRISIS_RESOURCES = [
   { label: "Tele-MANAS — Mental health support", phone: "14416" },
 ];
 
-async function mockSubmitCheckin(message: string): Promise<CheckinResponse> {
-  // Stand-in until POST /api/checkin exists (TM1). Matches CheckinRequest/
-  // CheckinResponse shape so swapping to the real call is a one-line change.
+async function mockSubmitCheckin(message: string): Promise<CheckInResponse> {
+  // Stand-in until POST /api/checkin exists (TM1). Matches the real
+  // CheckInResponse shape from types/contract.ts.
   await new Promise((r) => setTimeout(r, 400));
   return {
     reply: "Thanks for sharing that. Would you like to tell me a bit more?",
-    tier: "LOW",
-    breakdown: [{ label: "check-in text", contribution: 1 }],
+    tier: "GREEN",
+    assessmentId: "mock-assessment",
   };
 }
 
@@ -61,12 +61,12 @@ function CheckinPageInner() {
   // "Talk to a person" button sent us here via ?crisis=1, the CrisisPanel
   // is already the very first thing painted. No flash of the questions
   // screen first, no useEffect delay.
-  const [response, setResponse] = useState<CheckinResponse | null>(() => {
+  const [response, setResponse] = useState<CheckInResponse | null>(() => {
     if (searchParams.get("crisis") === "1") {
       return {
         reply: "Connecting you to a person now.",
         tier: "CRITICAL",
-        breakdown: [{ label: "manual override", contribution: 1 }],
+        assessmentId: "manual-override",
       };
     }
     return null;
@@ -77,7 +77,7 @@ function CheckinPageInner() {
     setResponse({
       reply: "Connecting you to a person now.",
       tier: "CRITICAL",
-      breakdown: [{ label: "manual override", contribution: 1 }],
+      assessmentId: "manual-override",
     });
   }
 
