@@ -89,8 +89,13 @@ and a 200 of any kind is a blocker.
 **Pass:** no output. Crisis detection is regex; a system prompt is a request, a regex is a guarantee.
 
 ### T1-B4 · Interlock is synchronous
-**Run:** `grep -n "async\|await\|Promise" lib/safety/interlock.ts lib/safety/lexicon.ts`
+**Run:** `grep -nE "\b(async|await|Promise)\b" lib/safety/interlock.ts lib/safety/lexicon.ts | grep -vE ":[0-9]+:\s*(\*|//|/\*)"`
 **Pass:** no output.
+The trailing filter drops comment lines. Without it the check reads FAIL on a
+correct file: `interlock.ts`'s header comment documents the absence of `async`,
+so the unfiltered grep matches its own documentation. Same class of problem as
+the word boundaries in T1-E4.
+**A hit inside a comment is not a pass by assertion — quote the filtered output.**
 
 ### T1-B5 · Two-pass wiring
 **Run:** read `app/api/checkin/route.ts` and report the line numbers of every `checkInput` and `checkOutput` call.
@@ -105,12 +110,36 @@ and a 200 of any kind is a blocker.
 **Pass:** the suite contains a case asserting `"I don't want to kill myself"` **fires**, and it passes. Over-firing is the correct failure direction here.
 
 ### T1-B8 · Lexicon covers all three written forms
-**Run:** `grep -c "lang: 'en'" lib/safety/lexicon.ts; grep -c "lang: 'hi'" lib/safety/lexicon.ts; grep -c "lang: 'hi-rom'" lib/safety/lexicon.ts`
-**Pass:** each ≥ 12. Romanised Hindi is what people actually type and is the one teams forget.
+**Run:**
+```
+grep -cE "lang:\s*['\"]en['\"]" lib/safety/lexicon.ts
+grep -cE "lang:\s*['\"]hi['\"]" lib/safety/lexicon.ts
+grep -cE "lang:\s*['\"]hi-rom['\"]" lib/safety/lexicon.ts
+grep -c "pattern: /" lib/safety/lexicon.ts
+```
+**Pass:** each language ≥ 12, **and the three language counts sum to the pattern
+count**. A mismatch means an entry is missing a `lang` tag — it is in the file,
+it is never attributed to a language, and it will be invisible in the
+per-language recall slice that T1-B2 exists to protect.
+The character classes are load-bearing: the earlier single-quoted form
+(`lang: 'en'`) returned `0 / 0 / 0` against a double-quoted file and read as a
+total failure on a fully populated lexicon. Quote style must not decide a
+BLOCKER. Romanised Hindi is what people actually type and is the one teams forget.
 
-### T1-B9 · Lexicon signed off by a human
-**Run:** `head -20 lib/safety/lexicon.ts`
-**Pass:** `REVIEWED_BY` and `REVIEWED_ON` are filled in with a real name and date. Blank = FAIL. An unreviewed lexicon is not a safety layer.
+### T1-B9 · Human sign-off on every hand-written safety pattern
+**Run:**
+```
+grep -n "REVIEWED_BY\|REVIEWED_ON" lib/safety/lexicon.ts lib/safety/interlock.ts
+```
+**Pass:** `REVIEWED_BY` and `REVIEWED_ON` are filled in with a real name and date
+in **both** files. Either one blank = FAIL. An unreviewed lexicon is not a safety
+layer, and neither is an unreviewed Pass 2.
+
+Scope covers both because `lib/safety/interlock.ts` holds the Pass-2
+banned-pattern table, including Hindi and romanised-Hindi patterns that were
+**authored by an agent**. Those decide whether a model's reply reaches a person
+in distress. A reviewer who signs the lexicon has reviewed the input side only;
+the output side needs its own signature from someone who reads Hindi.
 
 ### T1-B10 · Helpline numbers are real and filled in
 **Run:** `grep -n "TODO\|XXXX\|14566\|14416" lib/safety/replies.ts`
@@ -118,7 +147,9 @@ and a 200 of any kind is a blocker.
 
 ### T1-B11 · Pass-2 rejects advice
 **Run:** `npm run test -- interlock`
-**Pass:** cases exist and pass for `"you should try"`, a diagnosis term, a reassurance phrase, a 400-character reply, and a two-question reply.
+**Pass:** cases exist and pass for `"you should try"`, a diagnosis term, a reassurance phrase, an over-length reply (>320 chars, tested both just over the boundary and well over it), and a two-question reply.
+The rule is 320 — "400 characters" was arbitrary and left the boundary itself
+untested, which is where an off-by-one lives.
 
 ---
 

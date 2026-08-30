@@ -9,6 +9,14 @@ weights:
   s2_linguistic:  0.25
   s3_case_context: 0.25
   s4_engagement:  0.15
+  # DELIBERATE ZERO — NOT AN UNFINISHED TODO. Do not "complete" this.
+  # docs/SCORING_AND_POLICY.md section 2: acoustic emotion inference is least
+  # accurate for exactly the callers this system exists for — regional accents,
+  # code-switching, poor line quality, distress registers under-represented in
+  # every training set. Weighting it would push the largest errors onto the most
+  # marginalised users. S5 is therefore extracted and displayed with a caveat,
+  # and contributes nothing to the composite.
+  # The matching comment on the S5 extractor lands with lib/scoring on Day 2.
   s5_acoustic:    0.00
 
 baseline:
