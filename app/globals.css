@@ -2,3 +2,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --bg: #FAF7F2;        /* warm cream ground */
+  --surface: #FFFFFF;   /* cards */
+  --ink: #141414;       /* headlines */
+  --ink-soft: #55524D;  /* body */
+  --line: #E8E2D9;      /* hairlines */
+  --accent: #E8873A;    /* primary action, sparingly */
+  --calm: #1F9C8B;      /* confirmation, safe states */
+  --dot-blue: #4A9BE8;  /* decorative only */
+  --alert: #C4483A;     /* CRISIS PANEL ONLY — nowhere else in the app */
+
+  --r-card: 24px;
+  --r-btn: 999px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+}

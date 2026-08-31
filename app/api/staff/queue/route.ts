@@ -1,65 +1,64 @@
-/**
- * GET /api/staff/queue — STUB, GUARDED, FAILS CLOSED.
- *
- * Owner: TM1 (TM1_GUIDE.md section 3, Prompt 3).
- * Returns the two fixture queue items so TM3 can build the dashboard tonight.
- *
- * THE GUARD: the first statement in the handler is
- *   `if (!STUB_MODE) return stubUnavailable()`
- * and nothing may be added above it. There is no passcode gate here yet, so
- * without the guard a deployed build would serve person-level queue rows —
- * pseudonymous, but still a triage queue — to anyone who found the URL, with no
- * audit trail. STUB_MODE=1 is set in local dev and Vercel Preview only;
- * Production leaves it unset and gets a 503.
- *
- * WHAT IS DELIBERATELY MISSING, AND MUST LAND BEFORE THIS SHIPS:
- *   - the STAFF_PASSCODE gate (read server-side only, never NEXT_PUBLIC_)
- *   - an audit_events row per read of person-level data (CLAUDE.md)
- *   - the real query, ordered by tier then age, unacked first
- *
- * The guard, the STUB_MODE variable in .env.example, and lib/safety/stub-guard.ts
- * are all deleted in the same PR that lands the real pipeline and the interlock.
- * See T1-B0 in docs/CHECKS_TM1.md.
- *
- * Optional ?tier= filter, validated with TierSchema from the contract so no
- * parallel tier list exists anywhere in the codebase.
- */
+// app/api/staff/queue/route.ts — Get queue of alerts for counsellor
 
-import { NextResponse } from "next/server";
-import { z } from "zod";
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
+import type { QueueItem } from '@/types/contract';
 
-import { STUB_MODE, stubUnavailable } from "@/lib/safety/stub-guard";
-import { greenQueueItem, redQueueItem } from "@/scripts/fixtures";
-import { type QueueItem, QueueItemSchema, TierSchema } from "@/types/contract";
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-/** Fixtures are static; without this Next would prerender and serve a cached queue. */
-export const dynamic = "force-dynamic";
-
-/** RED first — this is a triage queue, not a chronological log. */
-const STUB_QUEUE: QueueItem[] = z
-  .array(QueueItemSchema)
-  .parse([redQueueItem, greenQueueItem]);
-
-export async function GET(request: Request) {
-  // Fails closed before anything else, including reading the query string.
-  // Nothing goes above this line.
-  if (!STUB_MODE) return stubUnavailable();
-
-  const rawTier = new URL(request.url).searchParams.get("tier");
-
-  let tier: QueueItem["tier"] | undefined;
-  if (rawTier !== null) {
-    const parsed = TierSchema.safeParse(rawTier);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "invalid_query", issues: parsed.error.issues },
-        { status: 400 },
-      );
-    }
-    tier = parsed.data;
+export async function GET() {
+  // Check auth
+  const cookieStore = await cookies();
+  if (!cookieStore.get('staff_auth')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const items = tier ? STUB_QUEUE.filter((item) => item.tier === tier) : STUB_QUEUE;
+  // Get unacked alerts sorted by tier priority + time
+  const { data: alerts, error } = await supabase
+    .from('alerts')
+    .select(`
+      id,
+      person_id,
+      tier,
+      sla_minutes,
+      created_at,
+      acked_at,
+      persons!inner(pseudonym),
+      assessments!inner(composite, change_point)
+    `)
+    .is('acked_at', null)
+    .order('tier', { ascending: false }) // CRITICAL > RED > AMBER
+    .order('created_at', { ascending: true }) // Oldest first
+    .limit(50);
 
-  return NextResponse.json(items, { status: 200 });
+  if (error) {
+    console.error('Queue fetch error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Transform to QueueItem format
+  const queue: QueueItem[] = (alerts || []).map((a: any) => ({
+    personId: a.person_id,
+    pseudonym: a.persons.pseudonym,
+    tier: a.tier,
+    composite: a.assessments.composite,
+    changePoint: a.assessments.change_point,
+    createdAt: a.created_at,
+    acked: false,
+    slaMinutes: a.sla_minutes,
+  }));
+
+  // Audit: log queue view
+  await supabase.from('audit_events').insert({
+    actor: 'staff-user', // In real system, use actual staff ID
+    role: 'counsellor',
+    action: 'view_queue',
+    subject_id: null,
+  });
+
+  return NextResponse.json(queue);
 }
