@@ -134,7 +134,7 @@ Return ONLY this JSON:
 }
 ```
 
-Keep it in `lib/llm/prompt.ts` as a single exported constant with a version string. The version goes into `model_version` on every assessment.
+Keep it in `lib/llm/prompt.ts` as a single exported constant with a version string. The version goes into `model_version` on every assessment, which is written as `<provider>:<modelId>+prompt-<PROMPT_VERSION>` — e.g. `groq:openai/gpt-oss-120b+prompt-1.0.0`. One column, both facts, splittable on `+`. Built by `modelVersion()` in `lib/llm/index.ts`; the same format is stated in TM1_GUIDE.md section 4.
 
 `s2_score` is a **signal**, not a decision. It is 25% of one composite and cannot by itself produce Critical.
 

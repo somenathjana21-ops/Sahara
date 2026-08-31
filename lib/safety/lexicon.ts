@@ -59,7 +59,7 @@
  * a person and a separate matching problem to a regex — SAFETY_SPEC.md
  * section 4 calls it "the form teams forget".
  */
-export const LEXICON_VERSION = "lexicon-v1.0.0"
+
 export type LexiconLang = "en" | "hi" | "hi-rom";
 
 /** The four categories in the SAFETY_SPEC.md section 4 table, in table order. */
@@ -79,7 +79,7 @@ export interface LexiconEntry {
  * Goes into `policy_version` on every assessment row this lexicon decided.
  * The word "unreviewed" stays in the string until REVIEWED_BY above is signed.
  */
-export const LEXICON_VERSION = "lexicon-v0-unreviewed";
+export const LEXICON_VERSION = "lexicon-v1.0.0";
 
 export const LEXICON: LexiconEntry[] = [
   /* ── English ─────────────────────────────────────────────────────────── */

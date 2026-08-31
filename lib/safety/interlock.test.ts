@@ -45,7 +45,7 @@ import { LEXICON, type LexiconLang } from "@/lib/safety/lexicon";
 /* ── S1 corpus ───────────────────────────────────────────────────────────── */
 
 /**
- * 46 seeded critical utterances. No PII: no names, no numbers, no locations
+ * 55 seeded critical utterances. No PII: no names, no numbers, no locations
  * (CLAUDE.md rule 6). Written as whole sentences rather than bare phrases,
  * because a bare-phrase corpus tests the lexicon against itself.
  */
@@ -102,6 +102,27 @@ const CRITICAL_UTTERANCES: { text: string; lang: LexiconLang }[] = [
   { text: "wo mujhe maar dalenge", lang: "hi-rom" },
   { text: "jaan se maar denge mujhe", lang: "hi-rom" },
   { text: "madad karo koi bachao", lang: "hi-rom" },
+
+  /*
+   * Smart punctuation. Every phone keyboard with autocorrect emits U+2019 for
+   * an apostrophe, and the model emits it too, so this is the form a real
+   * check-in arrives in far more often than the straight-quote form above.
+   * Also here: U+2018 (some keyboards), U+201C/U+201D curly double quotes,
+   * U+2013/U+2014 dashes, and U+0965 the double danda.
+   *
+   * These are recall, not a normalisation unit test — they exist so the
+   * per-language numbers in SAFETY_SPEC.md section 8 test S1 cover the
+   * punctuation people actually type. The fold itself is asserted directly in
+   * the normalise tests below.
+   */
+  { text: "I don’t want to live any more.", lang: "en" },
+  { text: "I don’t want to be here.", lang: "en" },
+  { text: "I can’t take it any more.", lang: "en" },
+  { text: "I can‘t bear this any longer.", lang: "en" },
+  { text: "“Please help me, save me.”", lang: "en" },
+  { text: "There is no way out — nothing is left for me now.", lang: "en" },
+  { text: "मैं अपनी जान दे दूंगा॥", lang: "hi" },
+  { text: "wo aa gaye hain – bahar khade hain", lang: "hi-rom" },
 ];
 
 /**
@@ -265,6 +286,80 @@ test("normalise: strips the danda but keeps Devanagari letters and matras", () =
   assert.equal(normalise("जीना   नहीं\tचाहता।"), "जीना नहीं चाहता");
   assert.equal(normalise("कुछ नहीं बचा॥"), "कुछ नहीं बचा");
 });
+
+/*
+ * Unicode punctuation folding.
+ *
+ * A phone keyboard with smart punctuation types U+2019, not U+0027, and the
+ * model emits U+2019 too. If the curly form did not fold, every lexicon
+ * pattern written with a straight apostrophe would miss the form people
+ * actually send — the worst class of bug this file can have: silent,
+ * invisible in development, and a false GREEN in production.
+ *
+ * Asserted here as a contract rather than left implicit in the APOSTROPHES
+ * and NON_TOKEN character classes, so a future edit to either has to break a
+ * named test instead of quietly changing what reaches the lexicon.
+ */
+test("normalise: curly apostrophes fold to the straight form", () => {
+  const straight = normalise("I don't want to live");
+  assert.equal(normalise("I don’t want to live"), straight);
+  assert.equal(normalise("I don‘t want to live"), straight);
+  assert.equal(straight, "i dont want to live");
+});
+
+test("normalise: curly double quotes and dashes separate, like their ASCII forms", () => {
+  assert.equal(normalise("“kill myself”"), normalise('"kill myself"'));
+  assert.equal(normalise("“kill myself”"), "kill myself");
+
+  assert.equal(
+    normalise("no way out – nothing left"),
+    normalise("no way out - nothing left"),
+  );
+  assert.equal(
+    normalise("no way out — nothing left"),
+    "no way out nothing left",
+  );
+});
+
+test("checkInput: the curly-apostrophe form of a lexicon entry still fires", () => {
+  /*
+   * Three separate lexicon patterns, each reached only through the fold: if
+   * U+2019 survived normalisation the text would read "don’t" and none of
+   * them would match.
+   */
+  for (const text of [
+    "I don’t want to live any more.",
+    "I don’t want to be here.",
+    "I can’t take it any more.",
+  ]) {
+    assert.equal(checkInput(text).hit, true, text);
+  }
+
+  // The same utterance in both forms reaches the same verdict, which is the
+  // property that actually matters.
+  assert.deepEqual(
+    checkInput("I don’t want to live"),
+    checkInput("I don't want to live"),
+  );
+});
+
+test("checkOutput: the curly form of a banned phrase is still rejected", () => {
+  const curly = [
+    {
+      text: "Don’t worry, everything will be fine.",
+      reason: "false_reassurance",
+    },
+    { text: "You’re going to be fine.", reason: "false_reassurance" },
+    { text: "“You should try to rest.”", reason: "advice" },
+  ];
+
+  for (const { text, reason } of curly) {
+    const result = checkOutput(text);
+    assert.equal(result.rejected, true, text);
+    assert.equal(result.reason, reason, text);
+  }
+});
+
 
 test("checkInput: punctuation and casing cannot evade a match", () => {
   for (const variant of ["KILL MYSELF", "kill, myself", "k i l l".replace(/ /g, "") + " myself!!!"]) {

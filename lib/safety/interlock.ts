@@ -57,7 +57,7 @@
  * failing T1-B9 is recoverable, a signature that was never earned is not.
  * ─────────────────────────────────────────────────────────────────────────
  */
-export const LEXICON_VERSION = "lexicon-v1.0.0"
+
 import { LEXICON } from "@/lib/safety/lexicon";
 
 /* ── normalisation ───────────────────────────────────────────────────────── */

@@ -188,6 +188,20 @@ Then lib/llm/prompt.ts exporting SYSTEM_PROMPT as a single string constant
 (copy it verbatim from SAFETY_SPEC section 7) and PROMPT_VERSION = "1.0.0".
 ```
 
+**Decided — `model_version` format.** The prompt above asks for
+`name + ':' + modelId`; SAFETY_SPEC section 7 asks for `PROMPT_VERSION` on
+every assessment. Both are satisfied by one string:
+
+```
+<provider>:<modelId>+prompt-<PROMPT_VERSION>
+groq:openai/gpt-oss-120b+prompt-1.0.0
+```
+
+One `assessments.model_version` column, both facts, splittable on `+`, no
+change to the frozen `types/contract.ts`. Built by `modelVersion()` in
+`lib/llm/index.ts` — never concatenated at a call site. The same format is
+stated in SAFETY_SPEC.md section 7; if you change one, change both.
+
 **Verify the swap actually works** — this is the check, don't skip it:
 
 ```bash
