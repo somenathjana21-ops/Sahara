@@ -11,7 +11,7 @@
 
     "eval": "tsx evals/run.ts",
 
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx --env-file=.env.local scripts/seed.ts"
 
   },
   "dependencies": {

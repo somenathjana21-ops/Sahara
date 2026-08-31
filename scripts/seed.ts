@@ -13,11 +13,11 @@
  * Only the first TWO check-ins are seeded. The third happens live on stage.
  */
 
-import { config } from 'dotenv';
+
 import { createClient } from '@supabase/supabase-js';
 
 // Load .env.local
-config({ path: '.env.local' });
+
 
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
