@@ -12,8 +12,27 @@ You are **verifying**, not building. Follow these rules exactly.
 1. Work top to bottom. Run **every** check, including ones after a failure.
 2. Use the exact command given. Do not substitute a different method, and do not reason about whether the check "would probably pass."
 3. **Fix nothing while running.** If you fix as you go, the report is worthless and the human loses the picture. Collect everything, report, then wait to be told what to fix.
-4. Record for each: `PASS` / `FAIL` / `BLOCKED` (couldn't run) / `MANUAL` (needs a human), plus the **actual evidence** — command output, `file:line`, or the grep hit. Never record PASS without evidence.
-5. If a command errors because a file doesn't exist yet, that's `BLOCKED`, not `FAIL`.
+4. Record for each: `PASS` / `FAIL` / `BLOCKED` / `DEFERRED` / `MANUAL`, plus the **actual evidence** — command output, `file:line`, or the grep hit. Never record PASS without evidence.
+5. The result codes are **not** interchangeable. Use exactly these definitions:
+
+| Code | Means | Test |
+|---|---|---|
+| `PASS` | The command ran and returned the right answer. | — |
+| `FAIL` | The command ran and returned the **wrong** answer. | — |
+| `BLOCKED` | The command **could not run**: missing npm script, missing file, the command itself errored. | Did the shell refuse you? |
+| `DEFERRED` | The command **ran cleanly**, and the feature it checks is **not built yet**. | Did the command exit 0 with nothing to find? |
+| `MANUAL` | Ran, but a human must confirm the result (e.g. a live helpline number). | — |
+
+**A `DEFERRED` row MUST name the day and prompt that closes it.** A row that
+says "not built yet" without saying *when* is an untracked hole, and it will
+still be there on Day 5.
+
+`BLOCKED` used to mean both "could not run" and "not built yet". That ambiguity
+is not cosmetic: B5 and B6 moved from FAIL to BLOCKED between two runs **with no
+code change**, because one run read "the pipeline isn't wired" as a failed
+answer and the next read it as an unrunnable check. A result code that depends
+on the reader's mood is not a result code. Split them and neither run is free to
+drift.
 
 **Output format — end your run with exactly this:**
 
@@ -25,12 +44,20 @@ BLOCKERS FAILING: <n>
 MAJOR FAILING:    <n>
 MINOR FAILING:    <n>
 BLOCKED:          <n>
+DEFERRED:         <n>
 NEEDS A HUMAN:    <n>
 
 VERDICT: SHIPPABLE / NOT SHIPPABLE
 ```
 
 **Verdict rule:** any failing BLOCKER = NOT SHIPPABLE. No exceptions, no "but it's nearly there."
+
+**DEFERRED must reach zero by Day 4.** It is the count of features the plan says
+will exist and that do not exist yet, so it is allowed to be large on Day 1 and
+must be shrinking every day. **Any DEFERRED still open on Day 5 = NOT
+SHIPPABLE**, on the same terms as a failing BLOCKER — Day 5 is the demo, and a
+feature that is not built on the morning of the demo is not deferred, it is
+missing.
 
 ---
 
@@ -98,10 +125,34 @@ the word boundaries in T1-E4.
 **A hit inside a comment is not a pass by assertion — quote the filtered output.**
 
 ### T1-B5 · Two-pass wiring
+**Expected result until it lands: `DEFERRED`** — closed by TM1_GUIDE.md section 7, Day 4, Prompt 9 (steps 4 and 6). The route is the guarded stub; the grep runs cleanly and finds nothing because there is nothing yet.
 **Run:** read `app/api/checkin/route.ts` and report the line numbers of every `checkInput` and `checkOutput` call.
 **Pass:** `checkInput` appears **before** any `lib/llm` call, and `checkOutput` **after** it and before the response is returned. Report both line numbers as evidence.
 
+### T1-B5a · TZ failure cannot reach a person in crisis — BLOCKER
+**Expected result until it lands: `DEFERRED`** — closed by TM1_GUIDE.md section 7, Day 4, Prompt 9 (step 4 vs step 8).
+**Run:** read `app/api/checkin/route.ts` and report the line numbers of the `checkInput` call and the first `loadPolicy` call.
+**Pass:** `checkInput` runs **strictly before** `loadPolicy`, and the lexicon-hit branch returns crisis resources **without** reaching `loadPolicy`. Quote both line numbers and the early `return`.
+
+`loadPolicy()` throws when `TZ` is unpinned (`assertTimezonePinned` in
+`lib/policy/engine.ts`). That is deliberate — a wrong date is worse than a
+failed boot — but it puts a **new way for the route to 500** in front of
+everything downstream of it. If policy loading is ordered before Pass 1, then a
+single missing environment variable turns "I want to kill myself" into an HTTP
+500 with no helpline number in it.
+
+SAFETY_SPEC.md section 1 is explicit: the interlock "runs before the LLM is
+contacted, so a person in crisis gets resources even if the model is down,
+rate-limited, or slow." A misconfigured timezone is the same class of failure as
+a dead model provider, and the same rule applies — **the crisis path must not
+depend on anything that can be misconfigured.** Scoring may fail closed. Pass 1
+may not.
+
+This is the ordering that makes the fail-closed guard safe to have. Without it,
+hardening the scorer made the crisis path more fragile, not less.
+
 ### T1-B6 · Critical short-circuits the model
+**Expected result until it lands: `DEFERRED`** — closed by TM1_GUIDE.md section 7, Day 4, Prompt 9 (step 4).
 **Run:** read the branch after `checkInput` in the route.
 **Pass:** on a lexicon hit the handler returns without ever reaching the LLM call. Quote the early `return`.
 
@@ -182,14 +233,17 @@ untested, which is where an off-by-one lives.
 **Pass:** a test where a person with no baseline and composite ≥ 60 gets at least AMBER.
 
 ### T1-C8 · Every assessment is versioned — MAJOR
+**Expected result until it lands: `DEFERRED`** — closed by TM1_GUIDE.md section 7, Day 4, Prompt 9. There is no insert path to version yet.
 **Run:** `grep -n "policy_version\|model_version" app/api/checkin/route.ts`
 **Pass:** both written on every insert path, including the lexicon short-circuit path.
 
 ### T1-C9 · Consent gate — BLOCKER
+**Expected result until it lands: `DEFERRED`** — closed by TM1_GUIDE.md section 7, Day 4, Prompt 9 (step 2).
 **Run:** POST a check-in for a person with no live consent row.
 **Pass:** HTTP 403 **and** zero new rows in `checkins` and `assessments`. Verify the row count, not just the status code.
 
 ### T1-C10 · Minor route — BLOCKER
+**Expected result until it lands: `DEFERRED`** — closed by TM1_GUIDE.md section 7, Day 4, Prompt 9 (step 3).
 **Run:** POST a check-in for a person with `is_minor_flag = true`.
 **Pass:** the minor reply is returned, a `checkins` row exists, and **zero** `assessments` rows were written.
 
@@ -198,14 +252,30 @@ untested, which is where an off-by-one lives.
 **Pass:** steps 1–4 complete in under 100 ms with the LLM mocked to hang. A person in crisis cannot wait on a model.
 
 ### T1-C12 · S3 is a snapshot, not a recomputation — BLOCKER
+**Expected result for the end-to-end half: `DEFERRED`** — the read path
+(`GET /api/staff/person/:id`) is closed by TM1_GUIDE.md section 7, Day 4,
+Prompt 9. The unit half below is live now and must PASS today.
 **Run:** `npm run test -- scoring`
 **Pass:** a test asserts a historical assessment returns the S3 stored in `components` (50 for A-4471's first two), **not** S3 recomputed from today's `cases` row (90). Recomputing makes the trend chart lie about the past.
+
+**Until the read path lands, this asserts the stored components only.** The
+end-to-end version of the guard — reading a historical assessment back *from the
+database* and proving the API did not recompute it on the way out — cannot be
+written before `GET /api/staff/person/:id` exists. Record the unit half as PASS
+and the end-to-end half as DEFERRED; do not let a green unit test read as
+coverage of a read path that does not exist.
+
+The assertion lives in `lib/scoring/scoring.test.ts`, not
+`scripts/fixtures.test.ts`. It was moved there because `npm run test -- scoring`
+filters by file **path**, and `scripts/` does not match it — the check named a
+command that could never reach its own assertion.
 
 ---
 
 ## Gate D — the model adapter
 
 ### T1-D1 · Providers are interchangeable — MAJOR
+**Expected result until it lands: `BLOCKED`, not DEFERRED** — `npm run eval` is not a script, so the command cannot run at all. Closed by TM1_GUIDE.md section 6, Day 3, Prompt 7.
 **Run:**
 ```
 LLM_PROVIDER=groq       npm run eval -- --set safety
@@ -219,6 +289,7 @@ LLM_PROVIDER=openrouter npm run eval -- --set safety
 **Pass:** no output.
 
 ### T1-D3 · Degradation on provider failure — BLOCKER
+**Expected result until it lands: `DEFERRED`** — closed by TM1_GUIDE.md section 7, Day 4, Prompt 9. The adapter already degrades; the route has no pipeline to degrade in.
 **Run:** set `LLM_API_KEY` to garbage, POST a check-in.
 **Pass:** HTTP 200, a `checkins` row and an `assessments` row are written, S2 is `null`, the composite is renormalised, and the interlock still fired. The system must survive the model being down.
 
@@ -229,6 +300,11 @@ LLM_PROVIDER=openrouter npm run eval -- --set safety
 ---
 
 ## Gate E — evaluation honesty
+
+> **Every check in this gate is `BLOCKED`, not `DEFERRED`, until the eval harness exists.**
+> `npm run eval` is not an npm script and `evals/` holds no `.jsonl` files, so none of
+> these commands can run — E1's empty output is a shell error, not a passing grep.
+> Closed by TM1_GUIDE.md section 6, Day 3, Prompt 7 (eval sets and `evals/run.ts`).
 
 ### T1-E1 · No accuracy metric — MAJOR
 **Run:** `npm run eval -- --set dev | grep -i accuracy`
@@ -261,6 +337,7 @@ Word boundaries are load-bearing: without them `devi` matches "deviation", which
 ## Gate F — the demo path
 
 ### T1-F1 · Golden path end to end — BLOCKER
+**Expected result until it lands: `DEFERRED`** — needs `scripts/seed.ts` (TM3_GUIDE.md section 4, Prompt 1, Day 1) and the route pipeline (Day 4, Prompt 9).
 **Run:** `npm run seed`, then POST the day-3 check-in for persona `A-4471`.
 **Pass:** response tier `RED`, `change_point: true`, an `alerts` row created with `ack_required`, and the assessment's `contributions` show S3 among the top two. Print the full breakdown as evidence.
 
@@ -270,4 +347,18 @@ Word boundaries are load-bearing: without them `devi` matches "deviation", which
 
 ### T1-F3 · Deployed, not local — BLOCKER
 **Run:** curl the Vercel production URL's `/api/staff/queue` with the passcode cookie.
+The URL is in README.md under "Deployed". It is not a secret and nobody should
+have to be asked for it.
 **Pass:** HTTP 200 with real data. Every env var set in production, not just in `.env.local`.
+
+**Then, separately: verify `TZ` is set for all three Vercel environments —
+Production, Preview AND Development.** Run `vercel env ls` and paste the output,
+or attach the Project Environment Variables screenshot. A variable set for
+Production only will pass every check on this list and then produce a different
+S3 the first time anyone opens a Preview deployment.
+
+**A green local test suite cannot prove this and must not be offered as
+evidence.** `scripts/run-tests.mjs` injects `TZ=Asia/Kolkata` into the test
+process precisely so the suite is reproducible across machines, which means the
+suite passes identically whether or not the deployed environment has the
+variable at all. The only evidence that counts here comes from Vercel.

@@ -36,6 +36,15 @@ tiers:
     any_of:
       - composite_gte: 45
       - z_gte: 1.2
+      # DORMANT, AND CORRECT ANYWAY. `composite_gte: 45` sits above this in the
+      # same any_of, and every composite >= 60 is also >= 45, so the clause
+      # above always matches first and this one can never be the rule named in
+      # `assignTier`'s matchedRule. The OUTCOME is still right — section 7's
+      # floor says a first contact at composite >= 60 gets "at least Amber",
+      # and it does — so this is not a bug and must not be deleted as dead
+      # config. It goes live the moment `composite_gte` is tuned above 60 on
+      # Day 3 (section 10), which is exactly when the floor starts mattering.
+      # lib/policy/policy.test.ts asserts both halves of this.
       - first_contact_composite_gte: 60
       - missed_checkins_gte: 3
   - tier: GREEN

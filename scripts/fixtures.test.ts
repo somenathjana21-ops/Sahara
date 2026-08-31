@@ -53,12 +53,10 @@ test("each contribution is its component times its weight", () => {
   }
 });
 
-test("S3 moves 50 -> 50 -> 90; a flat S3 has no story", () => {
-  assert.deepEqual(
-    assessments.map((a) => a.components.s3),
-    [50, 50, 90],
-  );
-});
+// The stored-vs-recomputed assertion that used to live here has moved to
+// lib/scoring/scoring.test.ts. CHECKS_TM1.md T1-C12 runs
+// `npm run test -- scoring`, and scripts/ is not on that path, so the check
+// could never actually reach it here.
 
 test("the flat baseline stays under the s3_gte:60 RED rule", () => {
   for (const a of assessments.slice(0, 2)) {

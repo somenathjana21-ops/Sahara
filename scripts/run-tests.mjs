@@ -27,10 +27,15 @@ if (files.length === 0) {
   process.exit(1);
 }
 
+// lib/policy/engine.ts refuses to load a policy unless TZ is pinned, because
+// S3's time-windowed rows are scored against the process's local calendar date
+// (see assertTimezonePinned there). Tests assert IST-dated fixtures, so the
+// harness pins it explicitly rather than inheriting whatever the machine has —
+// a developer in another zone must get the same numbers as the demo laptop.
 const result = spawnSync(
   process.execPath,
   ["--import", "tsx", "--test", ...files],
-  { stdio: "inherit" },
+  { stdio: "inherit", env: { ...process.env, TZ: "Asia/Kolkata" } },
 );
 
 process.exit(result.status ?? 1);

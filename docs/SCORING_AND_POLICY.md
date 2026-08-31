@@ -52,9 +52,29 @@ Three questions, 0–4 each. Asked by tap on `/checkin`, by keypad on `/call`.
 
 ---
 
-## 4. S2 — Linguistic
+## 4. S2 — Linguistic, and the nullable components
 
 Comes back from the LLM as `s2_score` with `markers` and `evidence`. If the provider is unavailable, `S2 = null` and the composite is renormalised over the remaining weights. Never default it to 0 — a missing signal is not a calm signal.
+
+**S2 is not the only nullable component. S1 is too, and for the same reason.**
+
+`checkins.structured` defaults to `'{}'`, and a call or a chat can be abandoned **before the first structured answer** — the keypad flow on `/call` ends when the line drops, not when the person has answered q1. When no question was answered, `S1 = null`. When some were, S1 renormalises over the questions actually answered: `sum / (answered × 4) × 100`, not `sum / 12 × 100`, so two answers of 2 read as 50 and not as 33.
+
+Substituting 0 for an unanswered S1 would put the words "much better, not at all, yes I feel safe" in the mouth of someone who said nothing at all. That is a worse failure than the S2 case, because S1 carries the largest weight in the composite.
+
+**Renormalisation raises the composite; it does not lower it.** The remaining weights are scaled up over a smaller denominator, so the components that *are* present carry proportionally more. Worked: with S2 missing the denominator is 0.75, and S1 = 95 / S3 = 55 / S4 = 50 gives 72.67 — Red — where substituting 0 for S2 would give 54.50 and Amber. This is deliberate and is the same direction as §6: **a person who stops answering does not thereby look calmer.** Silence in the engagement signal escalates, and silence in the self-report signal must not quietly de-escalate what remains.
+
+Which components may be null:
+
+| | Nullable | When |
+|---|---|---|
+| S1 | **yes** | abandoned before the first structured answer |
+| S2 | **yes** | LLM provider unavailable, or output failed schema validation |
+| S3 | no | deterministic from the `cases` row; always computable |
+| S4 | no | deterministic from the `persons` row; always computable |
+| S5 | **yes** | no audio on the channel — every `chat` check-in. Weight is 0.00 either way |
+
+Because S3 and S4 can always be computed, the renormalisation denominator never falls below 0.40 and a composite always exists. If it ever reaches 0, that is a bug and the code throws rather than reporting a composite of 0.
 
 ---
 

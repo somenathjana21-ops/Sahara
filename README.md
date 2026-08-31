@@ -9,6 +9,23 @@ regex against a fixed lexicon, safety-critical text comes from a fixed file, and
 every path terminates at a human being. Next.js 15 (App Router) · TypeScript ·
 Tailwind · Supabase · Vercel.
 
+**Deployed:** <https://sahara-ruddy.vercel.app>
+
+This URL is **not a secret** — it is a public production URL, and it belongs in
+the repo precisely so nobody has to be asked for it. Two checks in
+[`docs/CHECKS_TM1.md`](docs/CHECKS_TM1.md) target it by name (T1-B0, the stub
+failing closed, and T1-F3, deployed-not-local), and both previously stalled on
+"needs a human to supply the URL". **Keep it current.** If the deployment moves,
+change it here in the same commit — a stale URL here is worse than none, because
+a check will pass or fail against the wrong origin without saying so.
+
+**Production must set `TZ=Asia/Kolkata`** as a Vercel Project Environment
+Variable, not in `.env.local`. Vercel's runtime is UTC; S3's time-windowed rows
+are scored against the process's local calendar date, and between 00:00 and
+05:30 IST a UTC process reads the previous day and can drop both rows at once.
+`loadPolicy()` refuses to load without it rather than scoring a wrong date — see
+`assertTimezonePinned` in [`lib/policy/engine.ts`](lib/policy/engine.ts).
+
 Architecture, scoring, and policy are **not** explained here. See
 [`docs/00_MVP_PLAN.md`](docs/00_MVP_PLAN.md),
 [`docs/SAFETY_SPEC.md`](docs/SAFETY_SPEC.md), and
