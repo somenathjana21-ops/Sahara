@@ -2,7 +2,7 @@
 // GREEN / AMBER / RED / CRITICAL. Never color alone — always color + text
 // label, for colorblind users and for photocopied screenshots.
 
-type Tier = "GREEN" | "AMBER" | "RED" | "CRITICAL";
+import type { Tier } from "@/types/contract";
 
 const tierStyles: Record<Tier, string> = {
   GREEN: "bg-calm/10 text-calm",

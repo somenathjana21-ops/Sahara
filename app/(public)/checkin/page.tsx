@@ -14,15 +14,10 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CrisisPanel } from "@/components/ui/CrisisPanel";
 import { Button } from "@/components/ui/Button";
-import type { CheckInResponse } from "@/types/contract";
+import { t } from "@/components/ui/i18n";
+import type { CheckInResponse, Language } from "@/types/contract";
 
-// TODO: pull real question text + scoring weights from
-// docs/SCORING_AND_POLICY.md §3 before this ships — these are placeholders.
-const STRUCTURED_QUESTIONS = [
-  "How safe do you feel right now?",
-  "How well have you been sleeping?",
-  "How much support do you feel you have around you?",
-];
+const STRUCTURED_KEYS = ["checkin_q1", "checkin_q2", "checkin_q3"] as const;
 
 const CRISIS_RESOURCES = [
   { label: "NHAA — National Helpline Against Atrocities", phone: "14566" },
@@ -36,7 +31,7 @@ async function mockSubmitCheckin(message: string): Promise<CheckInResponse> {
   return {
     reply: "Thanks for sharing that. Would you like to tell me a bit more?",
     tier: "GREEN",
-    assessmentId: "mock-assessment",
+    assessmentId: "55555555-5555-5555-5555-000000000003",
   };
 }
 
@@ -51,9 +46,10 @@ export default function CheckinPage() {
 
 function CheckinPageInner() {
   const searchParams = useSearchParams();
+  const lang = (searchParams.get("lang") === "hi" ? "hi" : "en") as Language;
 
   const [step, setStep] = useState<"structured" | "chat">("structured");
-  const [answers, setAnswers] = useState<number[]>(Array(STRUCTURED_QUESTIONS.length).fill(-1));
+  const [answers, setAnswers] = useState<number[]>(Array(STRUCTURED_KEYS.length).fill(-1));
   const [message, setMessage] = useState("");
   const [thinking, setThinking] = useState(false);
 
@@ -66,7 +62,7 @@ function CheckinPageInner() {
       return {
         reply: "Connecting you to a person now.",
         tier: "CRITICAL",
-        assessmentId: "manual-override",
+        assessmentId: "55555555-5555-5555-5555-000000000003",
       };
     }
     return null;
@@ -77,7 +73,7 @@ function CheckinPageInner() {
     setResponse({
       reply: "Connecting you to a person now.",
       tier: "CRITICAL",
-      assessmentId: "manual-override",
+      assessmentId: "55555555-5555-5555-5555-000000000003",
     });
   }
 
@@ -103,9 +99,9 @@ function CheckinPageInner() {
     const allAnswered = answers.every((a) => a >= 0);
     return (
       <div className="mx-auto max-w-xl space-y-6 px-4 py-10">
-        {STRUCTURED_QUESTIONS.map((q, qi) => (
-          <div key={q} className="space-y-2">
-            <p className="text-sm font-medium">{q}</p>
+        {STRUCTURED_KEYS.map((key, qi) => (
+          <div key={key} className="space-y-2">
+            <p className="text-sm font-medium">{t(key, lang)}</p>
             <div className="flex gap-2">
               {[0, 1, 2, 3, 4].map((val) => (
                 <button
@@ -127,7 +123,7 @@ function CheckinPageInner() {
           </div>
         ))}
         <Button variant="primary" disabled={!allAnswered} onClick={() => setStep("chat")}>
-          Continue
+          {t("checkin_continue", lang)}
         </Button>
       </div>
     );
@@ -144,7 +140,7 @@ function CheckinPageInner() {
       <textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        placeholder="Share as much or as little as you'd like…"
+        placeholder={t("checkin_placeholder", lang)}
         rows={4}
         className="w-full rounded-card border border-line bg-surface p-3 text-sm"
       />
@@ -153,7 +149,7 @@ function CheckinPageInner() {
       {thinking && <p className="text-sm text-ink-soft">…</p>}
 
       <Button variant="primary" onClick={handleSend} disabled={thinking || !message.trim()}>
-        Send
+        {t("checkin_send", lang)}
       </Button>
     </div>
   );

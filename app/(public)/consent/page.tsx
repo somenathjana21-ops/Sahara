@@ -2,16 +2,27 @@
 
 "use client";
 
-import { useRouter } from "next/navigation";
+import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ConsentNotice } from "@/components/ui/ConsentNotice";
 
-export default function ConsentPage() {
+function ConsentPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const lang = searchParams.get("lang") || "en";
 
   return (
     <ConsentNotice
-      onConsent={() => router.push("/checkin")}
-      onDecline={() => router.push("/")}
+      onConsent={() => router.push(`/checkin?lang=${lang}`)}
+      onDecline={() => router.push(`/?lang=${lang}`)}
     />
+  );
+}
+
+export default function ConsentPage() {
+  return (
+    <Suspense fallback={null}>
+      <ConsentPageInner />
+    </Suspense>
   );
 }

@@ -8,6 +8,12 @@
 // useEffect fetch, no animation, no waitFor. It renders directly from
 // response.resources, nothing fetched afterward.
 
+"use client";
+
+import { useSearchParams } from "next/navigation";
+import { t } from "./i18n";
+import type { Language } from "@/types/contract";
+
 interface CrisisResource {
   label: string;
   phone: string;
@@ -20,6 +26,9 @@ interface CrisisPanelProps {
 }
 
 export function CrisisPanel({ resources, onTalkToPerson }: CrisisPanelProps) {
+  const searchParams = useSearchParams();
+  const lang = ((searchParams?.get("lang") === "hi" ? "hi" : "en")) as Language;
+
   return (
     <aside
       role="complementary"
@@ -27,10 +36,10 @@ export function CrisisPanel({ resources, onTalkToPerson }: CrisisPanelProps) {
       className="rounded-card border-2 border-alert bg-alert/5 p-5 space-y-3"
     >
       <h2 className="text-base font-semibold text-alert">
-        If you need to talk to someone right now
+        {t("crisis_heading", lang)}
       </h2>
       <p className="text-sm text-ink-soft">
-        You don&apos;t have to wait. These lines are free and available now.
+        {t("crisis_subhead", lang)}
       </p>
 
       <ul className="space-y-2">
@@ -50,7 +59,7 @@ export function CrisisPanel({ resources, onTalkToPerson }: CrisisPanelProps) {
         className="w-full min-h-[48px] rounded-btn bg-alert px-4 text-sm font-semibold text-white
                    focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
       >
-        Talk to a person now
+        {t("crisis_button", lang)}
       </button>
     </aside>
   );

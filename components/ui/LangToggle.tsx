@@ -9,10 +9,10 @@ export function LangToggle() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const lang = searchParams.get("lang") === "hi" ? "hi" : "en";
+  const lang = (searchParams?.get("lang") === "hi" ? "hi" : "en");
 
   function setLang(next: "en" | "hi") {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() || "");
     params.set("lang", next);
     router.push(`${pathname}?${params.toString()}`);
   }

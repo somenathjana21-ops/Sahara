@@ -8,18 +8,23 @@
 
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "./Button";
+import { t } from "./i18n";
+import type { Language } from "@/types/contract";
 
 export function TalkToPersonButton() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const lang = ((searchParams?.get("lang") === "hi" ? "hi" : "en")) as Language;
+
   return (
     <Button
       variant="danger"
       className="text-xs px-4"
-      onClick={() => router.push("/checkin?crisis=1")}
+      onClick={() => router.push(`/checkin?crisis=1&lang=${lang}`)}
     >
-      Talk to a person
+      {t("header_talk_to_person", lang)}
     </Button>
   );
 }
