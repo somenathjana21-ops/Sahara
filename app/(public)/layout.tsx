@@ -32,7 +32,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
   return (
     <>
       <header className="sticky top-0 z-50 flex items-center justify-between border-b border-line bg-bg/95 px-4 py-3 backdrop-blur">
-        <Suspense fallback={<span className="font-display text-lg">Saathi Check-in</span>}>
+        <Suspense fallback={<span className="font-display text-lg">Sahara Check-in</span>}>
           <HeaderContent />
         </Suspense>
       </header>

@@ -100,8 +100,8 @@ function CallPageInner() {
     setCallState('consent');
     speak(
       lang === 'hi'
-        ? 'नमस्ते। यह साथी चेक-इन है। क्या आप जारी रखना चाहते हैं? 1 दबाएं।'
-        : 'Hello. This is Saathi check-in. To continue, press 1.'
+        ? 'नमस्ते। यह सहारा चेक-इन है। क्या आप जारी रखना चाहते हैं? 1 दबाएं।'
+        : 'Hello. This is Sahara check-in. To continue, press 1.'
     );
   }
 

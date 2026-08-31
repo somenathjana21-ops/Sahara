@@ -19,7 +19,7 @@ const translations = {
     landing_voluntary_body: "You can stop anytime. Taking part — or not — never affects your case or any compensation.",
 
     // Header
-    header_title: "Saathi Check-in",
+    header_title: "Sahara Check-in",
     header_talk_to_person: "Talk to a person",
 
     // Consent
@@ -61,7 +61,7 @@ const translations = {
     landing_voluntary_body: "आप कभी भी रुक सकते हैं। भाग लेना — या नहीं — कभी भी आपके मामले या मुआवजे को प्रभावित नहीं करता।",
 
     // Header
-    header_title: "साथी चेक-इन",
+    header_title: "सहारा चेक-इन",
     header_talk_to_person: "किसी से बात करें",
 
     // Consent
