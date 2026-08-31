@@ -51,7 +51,7 @@ export {
   type LlmRawResult,
   type Marker,
 } from "./types";
-export { PROMPT_VERSION, SYSTEM_PROMPT } from "./prompt";
+export { PROMPT_VERSION, QUESTION_LIST, SYSTEM_PROMPT, buildTurn } from "./prompt";
 
 /**
  * Every accepted value of LLM_PROVIDER. The keys are the whole configuration

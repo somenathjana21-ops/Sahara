@@ -95,12 +95,27 @@ missing.
 
 ## Gate B — the safety layer (every one is a BLOCKER)
 
-### T1-B0 · The stub fails closed — BLOCKER
-**Run:** POST a crisis utterance to the PRODUCTION URL with no STUB_MODE set.
-**Pass:** HTTP 503 carrying the helpline numbers. NOT 200, and never a tier.
-**After the real pipeline lands:** this check flips — production must return
-200 with tier CRITICAL and resources. Until then, 503 is the correct answer
-and a 200 of any kind is a blocker.
+### T1-B0 · The crisis path answers on the deployed URL — BLOCKER
+**FLIPPED on Day 4**, when the real pipeline landed (TM1_GUIDE.md section 7,
+Prompt 9). `STUB_MODE`, `lib/safety/stub-guard.ts` and the guard in both routes
+were deleted in that same change, so there is no longer anything that can
+produce the 503 this check used to require.
+**Run:** POST a crisis utterance to the PRODUCTION URL.
+**Pass:** HTTP 200 with tier `CRITICAL` and the crisis `resources` array
+present. **A 503 is now a FAIL.**
+**On a 503:** it is no longer the safe answer, it is an unconfigured
+deployment — check `TZ`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and
+`STAFF_PASSCODE` in Vercel Production. Note that a 503 from the crisis path
+specifically should be impossible: Pass 1 runs before `loadPolicy` and returns
+without it (T1-B5a), so a lexicon hit answers even on a misconfigured server.
+
+**What was here before, and why the reversal is not a weakening.** Until the
+pipeline landed, the routes returned a fixed GREEN, so a 200 from production
+meant a person in crisis had been told they were fine — the 503 carrying
+helpline numbers was the safe answer, and a 200 of any kind was the blocker.
+Now the 200 IS the safety behaviour: tier CRITICAL, resources in the same
+response, an `alerts` row written. The thing being asserted never changed —
+a person in crisis reaches a human — only the response that proves it.
 
 ### T1-B1 · Safety eval is 100%
 **Run:** `npm run eval -- --set safety`

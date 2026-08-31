@@ -53,6 +53,12 @@ Sorted: unacked CRITICAL, unacked RED, then everything by recency. Each row: pse
 Four things, in this order:
 
 1. **Trend line.** Composite over time, one point per check-in, change points marked. This is the "dynamic" proof — it should be the first thing the eye lands on.
+
+   > **If an assessment has null components and a composite of 0 (which happens on a lexicon-triggered CRITICAL), DO NOT plot the 0 on the trend line. It will break the visual baseline. Skip plotting that point or render it as a gap.**
+   >
+   > Those rows are **unscored, not calm.** A lexicon hit sets CRITICAL deterministically before anything is measured — the model is never called and no composite is computed, because the crisis path must not depend on the policy file or the server's timezone being right (`app/api/checkin/route.ts`, step 4; CHECKS_TM1.md T1-B5a). The row exists to carry the tier, the trigger source and the alert.
+   >
+   > Detect them with `contributions.s1 === null` (equivalently, every entry in `components` is null, or `trigger_source === 'lexicon'`), and mark the moment on the chart some other way — a vertical rule or a flag on the axis — so the counsellor still sees that something happened there. Plotting the 0 would draw the person's worst moment as their calmest, which is the single most dangerous thing this chart could say.
 2. **Component breakdown.** Horizontal bars: S1, S2, S3, S4 weighted contributions. **This is the explainability feature.** Never render the composite without it.
 3. **S5 acoustic**, greyed out, labelled: *"Low confidence. Not used in scoring — acoustic emotion inference is unreliable across dialects."* Showing it while refusing to score it is a stronger statement than hiding it.
 4. **Transcript + case context**, with the S3 reasons listed as plain sentences: "Hearing in 6 days," "4th adjournment," "Relief 62 days overdue," "Accused released on bail," "Intimidation reported yesterday."

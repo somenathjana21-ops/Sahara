@@ -17,11 +17,10 @@
  * SAFETY_SPEC.md section 5: "Verify both are current before the demo; a wrong
  * helpline number on stage is the worst possible detail to get wrong."
  *
- * The values below are the ones the spec names (NHAA 14566, Tele-MANAS 14416)
- * and match lib/safety/stub-guard.ts. They are NOT left blank on purpose: an
- * empty constant here renders a crisis card with no number on it, which is a
- * worse failure than an unverified one. A human still has to dial both and
- * sign the two lines above before Day 5.
+ * The values below are the ones the spec names (NHAA 14566, Tele-MANAS 14416).
+ * They are NOT left blank on purpose: an empty constant here renders a crisis
+ * card with no number on it, which is a worse failure than an unverified one.
+ * A human still has to dial both and sign the two lines above before Day 5.
  * ─────────────────────────────────────────────────────────────────────────
  */
 
@@ -35,8 +34,9 @@ export interface Helpline {
 
 /**
  * One place, so the numbers are correct everywhere (SAFETY_SPEC.md section 5).
- * lib/safety/stub-guard.ts duplicates these deliberately and must not import
- * them — see the comment in that file.
+ * This is now the ONLY copy: lib/safety/stub-guard.ts held a duplicate while
+ * the pipeline was a stub, and it was deleted with the stub. Anything that
+ * needs a helpline number imports it from here.
  */
 export const HELPLINES: Helpline[] = [
   {

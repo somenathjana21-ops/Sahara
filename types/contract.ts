@@ -4,6 +4,11 @@
  * Owner: TM1. FROZEN after Day 0 (00_MVP_PLAN.md section 5).
  * Changes need TM1 sign-off and a message in the group.
  *
+ * CHANGE LOG since the freeze:
+ *   Day 4 — CheckInResponse.tier and .assessmentId became optional, so the
+ *           minor route can omit both instead of inventing them. Signed off by
+ *           TM1; see the block comment on CheckInResponseSchema.
+ *
  * Implements: 00_MVP_PLAN.md section 5, TM1_GUIDE.md section 3 (Prompt 2).
  * Row schemas match schema.sql column-for-column, in snake_case.
  * API payloads (CheckInRequest/Response, QueueItem, PersonDetail) are
@@ -295,12 +300,31 @@ export type CheckInRequest = z.infer<typeof CheckInRequestSchema>;
  * POST /api/checkin — response.
  * When tier is 'CRITICAL', resources is present and CrisisPanel renders it in
  * the same paint, with no further fetch (SAFETY_SPEC.md section 3).
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * CONTRACT CHANGE, Day 4. `tier` and `assessmentId` became OPTIONAL.
+ * Authorised by TM1; the rest of this file is unchanged and still frozen.
+ *
+ * They were required, and the minor route (CLAUDE.md rule 10, SAFETY_SPEC.md
+ * test S10) has neither: it routes to a human, writes no assessment, and
+ * assigns no tier. Meeting the old shape meant answering with a nil UUID and
+ * a GREEN — a value that reads as "low risk" for a person the system
+ * deliberately refused to score. Sending a made-up tier is worse than sending
+ * none, so the type now says what is true: both fields are ABSENT when nothing
+ * was scored, and present on every path that scored something.
+ *
+ * CONSUMERS: `tier === undefined` means "not scored, routed to a human", never
+ * "safe". Do not default it to GREEN when rendering, and do not treat a missing
+ * `assessmentId` as a lookup failure — there is no row to look up.
+ * ─────────────────────────────────────────────────────────────────────────
  */
 export const CheckInResponseSchema = z.object({
   reply: z.string(),
-  tier: TierSchema,
+  /** Absent when nothing was scored. Absent is not GREEN. */
+  tier: TierSchema.optional(),
   resources: z.array(CrisisResourceSchema).optional(),
-  assessmentId: UuidSchema,
+  /** Absent when no assessment row was written. */
+  assessmentId: UuidSchema.optional(),
   nextQuestionId: z.string().optional(),
 });
 export type CheckInResponse = z.infer<typeof CheckInResponseSchema>;

@@ -76,3 +76,29 @@ Return ONLY this JSON:
   "language": "hi" | "en",
   "next_question_id": "<id from the list>"
 }`;
+
+/* ── the turn ────────────────────────────────────────────────────────────── */
+
+/**
+ * The three self-report questions, SCORING_AND_POLICY.md section 3 verbatim.
+ *
+ * SYSTEM_PROMPT refers to "the provided question list" and asks the model to
+ * return one of its ids. That list and the person's message are TURN DATA, not
+ * prompt text, which is why they live below the versioned string rather than
+ * inside it: PROMPT_VERSION means "the instructions changed", and it would
+ * stop meaning that if every wording tweak to a question bumped it.
+ *
+ * This is shared by POST /api/checkin and evals/run.ts on purpose. An eval
+ * that sends the model a different turn from the one the route sends is an
+ * eval of a system nobody is running (evals/run.ts, header).
+ */
+export const QUESTION_LIST = [
+  "q1: How have you been feeling since we last spoke?",
+  "q2: How much has this been affecting your sleep and eating?",
+  "q3: Do you feel safe right now?",
+].join("\n");
+
+/** The `user` argument of `complete()`: the question list, then what they said. */
+export function buildTurn(transcript: string): string {
+  return `Question list:\n${QUESTION_LIST}\n\nThe person said:\n${transcript}`;
+}

@@ -42,6 +42,7 @@ import {
   LLMUnavailableError,
   PROVIDER_NAMES,
   SYSTEM_PROMPT,
+  buildTurn,
   complete,
   getProvider,
   modelVersion,
@@ -218,28 +219,6 @@ function parseArgs(argv: string[]): Args {
 
   if (!sawSet) throw new Error(`--set is required.\n\n${USAGE}`);
   return args;
-}
-
-/* ── the model turn ──────────────────────────────────────────────────────── */
-
-/**
- * SYSTEM_PROMPT refers to "the provided question list" and asks the model to
- * return one of its ids. That list and the person's message are turn data, not
- * prompt text, and lib/llm/prompt.ts keeps them out of the versioned string on
- * purpose — so PROMPT_VERSION keeps meaning something.
- *
- * The questions are SCORING_AND_POLICY.md section 3, verbatim. When Prompt 9
- * wires the route, the route needs the identical turn: move this into lib/llm
- * at that point rather than letting the route grow a second copy that drifts.
- */
-const QUESTION_LIST = [
-  "q1: How have you been feeling since we last spoke?",
-  "q2: How much has this been affecting your sleep and eating?",
-  "q3: Do you feel safe right now?",
-].join("\n");
-
-function buildTurn(transcript: string): string {
-  return `Question list:\n${QUESTION_LIST}\n\nThe person said:\n${transcript}`;
 }
 
 /* ── scoring one item ────────────────────────────────────────────────────── */
