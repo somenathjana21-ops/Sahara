@@ -275,7 +275,21 @@ command that could never reach its own assertion.
 ## Gate D — the model adapter
 
 ### T1-D1 · Providers are interchangeable — MAJOR
-**Expected result until it lands: `BLOCKED`, not DEFERRED** — `npm run eval` is not a script, so the command cannot run at all. Closed by TM1_GUIDE.md section 6, Day 3, Prompt 7.
+**Landed** — the eval harness exists (`npm run eval`, TM1_GUIDE.md section 6, Day 3,
+Prompt 7). This check now runs and is expected to return a real PASS or FAIL; it is
+no longer DEFERRED or BLOCKED for any planned reason.
+
+> Note for anyone reading an older run: this row used to carry an "expected
+> BLOCKED, not DEFERRED" note on the grounds that `npm run eval` was not yet a
+> script. That reasoning is superseded — both by the script existing and by the
+> rule stated under T1-F1, which files a command that cannot run *because its
+> feature is unbuilt* as DEFERRED rather than BLOCKED.
+
+**Note on evidence:** a run where the gemini and openrouter calls fail on a bad or
+absent key still produces identical numbers, because the interlock never calls a
+model — which is exactly the point being made. Say so in the evidence if that is
+what happened, because such a run does **not** demonstrate that those two adapters
+work; T1-D4 and the adapter tests cover that separately.
 **Run:**
 ```
 LLM_PROVIDER=groq       npm run eval -- --set safety
@@ -337,13 +351,49 @@ Word boundaries are load-bearing: without them `devi` matches "deviation", which
 ## Gate F — the demo path
 
 ### T1-F1 · Golden path end to end — BLOCKER
-**Expected result until it lands: `DEFERRED`** — needs `scripts/seed.ts` (TM3_GUIDE.md section 4, Prompt 1, Day 1) and the route pipeline (Day 4, Prompt 9).
+**Expected result until it lands: `DEFERRED`, not BLOCKED** — needs `scripts/seed.ts`
+(TM3_GUIDE.md section 4, Prompt 1, **TM3 Day 1**) and the route pipeline
+(TM1_GUIDE.md section 7, Prompt 9, **TM1 Day 4**). Both must land before this can run.
+
+`npm run seed` is not an npm script yet, so a strict reading of the result-code
+table calls this BLOCKED — "the command could not run: missing npm script". Record
+it as **DEFERRED** anyway, and the distinction is worth stating once because it
+generalises to every check in this file:
+
+> **BLOCKED is about the harness. DEFERRED is about the feature.** Ask *why* the
+> command cannot run. A script that is missing because nobody has written the
+> feature it invokes is a feature that does not exist yet — DEFERRED, and it must
+> name the day and prompt that closes it. BLOCKED is for a command that cannot run
+> for a reason the plan does not already account for: a broken harness, an
+> unreachable host, a permission the runner does not have, a file that should be
+> there and is not.
+
+The reason this matters is the counting rule. DEFERRED is tracked, has a named
+closing prompt, and must reach zero by Day 4; BLOCKED has no owner and no date. A
+planned, scheduled gap filed as BLOCKED silently leaves the burn-down and nobody
+notices it is missing until Day 5.
+
 **Run:** `npm run seed`, then POST the day-3 check-in for persona `A-4471`.
 **Pass:** response tier `RED`, `change_point: true`, an `alerts` row created with `ack_required`, and the assessment's `contributions` show S3 among the top two. Print the full breakdown as evidence.
 
 ### T1-F2 · Deterministic replay — MAJOR
+**Expected result until it lands: `DEFERRED`, not BLOCKED — inherited from T1-F1.**
+This check runs F1 twice, so it cannot run until F1 can: it needs `scripts/seed.ts`
+(TM3_GUIDE.md section 4, Prompt 1, **TM3 Day 1**) and the route pipeline
+(TM1_GUIDE.md section 7, Prompt 9, **TM1 Day 4**). It closes when F1 closes, and it
+carries F1's closing prompts rather than any of its own.
+
+Record it as DEFERRED for the same reason F1 is, and see the BLOCKED-vs-DEFERRED
+rule stated there: the harness is fine, the feature is absent.
 **Run:** F1 twice from a fresh seed with the LLM mocked to a fixed S2.
 **Pass:** identical composite both times. A demo that only works sometimes is a demo that fails on stage.
+
+**A note on what "identical" can mean here.** The composite is only reproducible
+if the S2 fed into it is held fixed, which is why the check says to mock it. Do not
+substitute a live provider and call the result deterministic — the dev-set runs on
+Day 3 produced a different confusion matrix on each pass over a byte-identical
+file, because a live `s2_score` moves between runs and rate-limited calls degrade
+different items each time. Mock S2, or this check measures the provider's mood.
 
 ### T1-F3 · Deployed, not local — BLOCKER
 **Run:** curl the Vercel production URL's `/api/staff/queue` with the passcode cookie.

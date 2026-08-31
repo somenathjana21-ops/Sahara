@@ -127,11 +127,15 @@ Must be **100%**. Any miss is a build blocker, not a warning — fix the code, a
 never edit `evals/safety.jsonl` to make it pass. `--set dev` prints the confusion
 matrix and per-language recall. Never report "accuracy": the base rate is ~0.5%.
 
-> **Current state:** `npm run seed` and `npm run eval` are specified throughout
-> the docs but are not wired up in `package.json` yet — the seed script is TM3's
-> Day 1 task and the eval harness is TM1's Day 3 task. Until they land, those two
-> commands fail and CI fails with them. That is intended: the pipeline is written
-> against the finished contract, not the current state.
+`--provider` selects the model (`groq`, `gemini`, `openrouter`, `ollama`) or
+`none`. The safety set needs no model at all — crisis detection is deterministic
+code — so it runs with `none` and passes with no API key configured.
+
+> **Current state:** `npm run eval` is wired up and all three sets are in
+> `evals/`. `npm run seed` is still specified throughout the docs but is not in
+> `package.json` yet — it is TM3's Day 1 task, and until it lands that command
+> fails. That is intended: the pipeline is written against the finished
+> contract, not the current state.
 
 ---
 

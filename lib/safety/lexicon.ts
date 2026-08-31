@@ -98,7 +98,11 @@ export const LEXICON: LexiconEntry[] = [
   { pattern: /\bnothing\s*(is\s*)?left\b/i, lang: "en", category: "hopelessness_finality" },
   { pattern: /\bgiv(e|ing)\s*up\s*(completely|entirely|on\s*everything)\b/i, lang: "en", category: "hopelessness_finality" },
   { pattern: /\bno\s*(point|hope|reason)\s*(in|to|left)?\s*(liv(e|ing)|go(ing)?\s*on|carry(ing)?\s*on|any\s*more)\b/i, lang: "en", category: "hopelessness_finality" },
-  { pattern: /\bcant\s*(take|do|bear)\s*(it|this)\s*(any\s*more|any\s*longer)\b/i, lang: "en", category: "hopelessness_finality" },
+  /* The negated-verb alternation matches the self-harm entry above, and for the
+     same reason: normalise() turns "can't" into "cant" but leaves "cannot" and
+     "can not" untouched, so a `cant`-only pattern silently misses every person
+     who writes the word out. Found by evals/safety.jsonl item S-1010. */
+  { pattern: /\b(cant|cannot|can\s*not)\s*(take|do|bear)\s*(it|this)\s*(any\s*more|any\s*longer)\b/i, lang: "en", category: "hopelessness_finality" },
 
   /* immediate danger */
   { pattern: /\bthey\s*(are|re)\s*(here|outside|at\s*(the|my)\s*(door|house|gate))\b/i, lang: "en", category: "immediate_danger" },
