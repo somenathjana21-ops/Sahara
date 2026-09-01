@@ -1,38 +1,64 @@
 // app/(staff)/staff/page.tsx — Staff queue dashboard
+// Fetches from /api/staff/queue so audit_events are written (CHECKS_TM3 T3-A7, T3-C6)
 
-import { createClient } from '@supabase/supabase-js';
+'use client';
+
+import { useEffect, useState } from 'react';
 import { TierBadge } from '@/components/ui/TierBadge';
 import { Card } from '@/components/ui/Card';
 import Link from 'next/link';
 import type { Tier } from '@/types/contract';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+interface QueueItem {
+  personId: string;
+  pseudonym: string;
+  tier: Tier;
+  composite: number;
+  changePoint: boolean;
+  createdAt: string;
+  acked: boolean;
+  slaMinutes: number;
+}
 
-export default async function StaffQueuePage() {
-  // Fetch unacked alerts
-  const { data: alerts } = await supabase
-    .from('alerts')
-    .select(`
-      id,
-      person_id,
-      tier,
-      created_at,
-      persons!inner(pseudonym),
-      assessments!inner(composite, change_point, created_at)
-    `)
-    .is('acked_at', null)
-    .order('tier', { ascending: false })
-    .order('created_at', { ascending: true })
-    .limit(50);
+export default function StaffQueuePage() {
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const queue = alerts || [];
+  useEffect(() => {
+    async function fetchQueue() {
+      try {
+        const res = await fetch('/api/staff/queue', { credentials: 'include' });
+        if (!res.ok) {
+          setError(`Queue fetch failed (${res.status})`);
+          return;
+        }
+        const data: QueueItem[] = await res.json();
+        setQueue(data);
+      } catch {
+        setError('Failed to load queue');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchQueue();
+  }, []);
 
-  // Tier priority for sorting
-  const tierOrder: Record<string, number> = { CRITICAL: 0, RED: 1, AMBER: 2, GREEN: 3 };
-  const sorted = queue.sort((a, b) => tierOrder[a.tier] - tierOrder[b.tier]);
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto p-8 text-center text-ink-soft">
+        Loading queue…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-6xl mx-auto p-8 text-center text-red-700">
+        {error}
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -50,28 +76,28 @@ export default async function StaffQueuePage() {
       )}
 
       <div className="space-y-3">
-        {sorted.map((item: any) => (
+        {queue.map((item) => (
           <Link
-            key={item.id}
-            href={`/staff/person/${item.person_id}`}
+            key={item.personId}
+            href={`/staff/person/${item.personId}`}
             className="block"
           >
             <Card className="p-4 hover:border-accent transition-colors cursor-pointer">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <TierBadge tier={item.tier as Tier} />
+                  <TierBadge tier={item.tier} />
                   <div>
-                    <p className="font-semibold">{item.persons.pseudonym}</p>
+                    <p className="font-semibold">{item.pseudonym}</p>
                     <p className="text-sm text-ink-soft">
-                      Composite: {item.assessments.composite.toFixed(1)}
-                      {item.assessments.change_point && (
+                      Composite: {item.composite.toFixed(1)}
+                      {item.changePoint && (
                         <span className="ml-2 text-red-700">↑ Change point</span>
                       )}
                     </p>
                   </div>
                 </div>
                 <div className="text-sm text-ink-soft">
-                  {new Date(item.created_at).toLocaleString()}
+                  {new Date(item.createdAt).toLocaleString()}
                 </div>
               </div>
             </Card>

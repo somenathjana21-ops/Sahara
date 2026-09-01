@@ -15,6 +15,7 @@
 
 
 import { createClient } from '@supabase/supabase-js';
+import { updateEWMA } from '../lib/scoring/baseline';
 
 // Load .env.local
 
@@ -40,13 +41,20 @@ async function main() {
   // Insert or update golden-path persona
   console.log('Upserting golden-path persona A-4471...');
 
+  // Dynamically compute baseline from the two prior check-in composites
+  // using the same EWMA function the scoring engine uses.
+  const composite1 = 28.00;
+  const composite2 = 31.00;
+  const after1 = updateEWMA(null, null, composite1);          // mu=28, var=0
+  const after2 = updateEWMA(after1.mean, after1.variance, composite2); // EWMA update
+
   const { error: personError } = await supabase.from('persons').upsert({
     id: GOLDEN_PERSON_ID,
     pseudonym: 'A-4471',
     language: 'hi',
     is_minor_flag: false,
-    baseline_mean: 28.90,  // Computed from first 2 check-ins
-    baseline_var: 8.0,     // Variance from first 2
+    baseline_mean: after2.mean,      // Computed dynamically via EWMA
+    baseline_var: after2.variance,   // Computed dynamically via EWMA
     checkin_count: 2,
     missed_count: 0,
     created_at: new Date('2026-08-28T09:00:00Z').toISOString(),
@@ -162,7 +170,7 @@ async function main() {
 
   console.log('✅ Golden path seeded (2 check-ins, baseline set)');
   console.log('   Persona: A-4471 (Hindi, land dispossession)');
-  console.log('   Baseline: μ=28.90, σ²=8.0');
+  console.log(`   Baseline: μ=${after2.mean.toFixed(2)}, σ²=${after2.variance.toFixed(2)}`);
   console.log('   Next check-in (Day 0) will spike to RED');
 
   // Add some filler personas for queue variety

@@ -11,7 +11,7 @@ export default async function StaffLayout({
 }) {
   // Check for auth cookie
   const cookieStore = await cookies();
-  const authCookie = cookieStore.get('staff_auth');
+  const authCookie = cookieStore.get('staff_session');
 
   if (!authCookie) {
     redirect('/api/staff/auth/login');

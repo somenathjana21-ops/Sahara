@@ -319,8 +319,8 @@ function CallPageInner() {
           </div>
         )}
 
-        {/* DTMF Keypad */}
-        {callState !== 'open_question' && callState !== 'completed' && (
+        {/* DTMF Keypad — full keypad during question flow */}
+        {callState !== 'open_question' && callState !== 'completed' && callState !== 'idle' && (
           <div className="grid grid-cols-3 gap-3">
             {['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map(
               (key) => (
@@ -328,11 +328,9 @@ function CallPageInner() {
                   key={key}
                   type="button"
                   onClick={() => handleKeyPress(key)}
-                  disabled={callState === 'idle'}
                   className={`min-h-[56px] rounded-full border border-line font-mono text-lg font-semibold
                     hover:bg-bg active:scale-95 transition-all
-                    ${key === '0' ? 'bg-red-700/10 text-red-700 border-red-700' : 'bg-surface'}
-                    ${callState === 'idle' ? 'opacity-40' : ''}`}
+                    ${key === '0' ? 'bg-red-700/10 text-red-700 border-red-700' : 'bg-surface'}`}
                 >
                   {key}
                   {key === '0' && (
@@ -343,6 +341,23 @@ function CallPageInner() {
                 </button>
               )
             )}
+          </div>
+        )}
+
+        {/* Panic key (0) always visible even during open_question and completed (CHECKS_TM3 T3-D2) */}
+        {(callState === 'open_question' || callState === 'completed' || callState === 'idle') && (
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={() => handleKeyPress('0')}
+              className="min-h-[56px] w-20 rounded-full border border-red-700 bg-red-700/10 text-red-700
+                font-mono text-lg font-semibold hover:bg-red-700/20 active:scale-95 transition-all"
+            >
+              0
+              <span className="block text-[9px] font-normal font-sans">
+                PANIC
+              </span>
+            </button>
           </div>
         )}
 
