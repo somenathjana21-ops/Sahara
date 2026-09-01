@@ -61,6 +61,7 @@ import { isChangePoint, updateEWMA, zScore } from "@/lib/scoring/baseline";
 import { computeComposite } from "@/lib/scoring/composite";
 import {
   extractS5,
+  getTodayIST,
   q3IsCriticalTrigger,
   scoreS1,
   scoreS3,
@@ -112,23 +113,38 @@ function loadDotEnv(file: string): void {
 }
 
 /**
- * S3's two time-windowed rows are scored against the process's LOCAL calendar
- * date, so an unpinned timezone silently moves the score by up to 40 points
+ * S3's two time-windowed rows are scored against the IST calendar date, so an
+ * undeclared timezone silently moves the score by up to 40 points
  * (lib/policy/engine.ts, assertTimezonePinned). `loadPolicy` refuses to run
  * without it.
  *
- * Default it rather than fail on a developer laptop that has never set TZ —
- * this is a script, not the server — but only when it is UNSET. A TZ that is
- * set to the wrong zone is a deliberate statement and must still hit the
- * policy engine's error, which explains the problem far better than this
- * function could.
+ * Default them rather than fail on a developer laptop that has never set
+ * either — this is a script, not the server — but only when UNSET. A zone set
+ * to the wrong value is a deliberate statement and must still hit the policy
+ * engine's error, which explains the problem far better than this function
+ * could.
+ *
+ * PROJECT_TZ is the one `loadPolicy` checks (Vercel reserves the name TZ). TZ
+ * itself is pinned too, so the report's own timestamps read in IST — the scores
+ * no longer depend on it, since `today` comes from `getTodayIST()`.
  */
 function pinTimezone(): { pinned: boolean } {
+  let pinned = false;
+
+  if (
+    process.env.PROJECT_TZ === undefined ||
+    process.env.PROJECT_TZ.trim() === ""
+  ) {
+    process.env.PROJECT_TZ = "Asia/Kolkata";
+    pinned = true;
+  }
+
   if (process.env.TZ === undefined || process.env.TZ.trim() === "") {
     process.env.TZ = "Asia/Kolkata";
-    return { pinned: true };
+    pinned = true;
   }
-  return { pinned: false };
+
+  return { pinned };
 }
 
 /* ── arguments ───────────────────────────────────────────────────────────── */
@@ -488,7 +504,7 @@ function buildReport(
 
   /* ── header ── */
   say(`Eval set: ${args.set}   (${outcomes.length} items)`);
-  say(`Run date: ${today.toISOString()}   TZ=${process.env.TZ}`);
+  say(`Run date: ${today.toISOString()}   PROJECT_TZ=${process.env.PROJECT_TZ}`);
   say(`Policy:   ${policy.version}, signed by ${policy.signed_by}`);
   say(`Lexicon:  ${LEXICON_VERSION}`);
   say(
@@ -715,7 +731,7 @@ async function main(): Promise<number> {
   const tz = pinTimezone();
 
   const policy = loadPolicy();
-  const today = new Date();
+  const today = getTodayIST();
 
   const file = `evals/${args.set}.jsonl`;
   if (!existsSync(file)) throw new Error(`${file} does not exist.`);
@@ -792,7 +808,9 @@ async function main(): Promise<number> {
   }
 
   if (tz.pinned) {
-    console.error("note: TZ was unset; pinned to Asia/Kolkata for this run.\n");
+    console.error(
+      "note: PROJECT_TZ and/or TZ were unset; pinned to Asia/Kolkata for this run.\n",
+    );
   }
 
   const outcomes = await runSet(items, today, policy, provider, args);

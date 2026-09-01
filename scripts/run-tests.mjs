@@ -27,15 +27,24 @@ if (files.length === 0) {
   process.exit(1);
 }
 
-// lib/policy/engine.ts refuses to load a policy unless TZ is pinned, because
-// S3's time-windowed rows are scored against the process's local calendar date
-// (see assertTimezonePinned there). Tests assert IST-dated fixtures, so the
-// harness pins it explicitly rather than inheriting whatever the machine has —
-// a developer in another zone must get the same numbers as the demo laptop.
+// Two variables, two different jobs.
+//
+// PROJECT_TZ is what lib/policy/engine.ts checks: it refuses to load a policy
+// unless the environment has declared which calendar the case dates are on (see
+// assertTimezonePinned there). It is not called TZ because Vercel reserves that
+// name and will not let it be created in production.
+//
+// TZ is the process zone, and the harness still pins it: the scoring tests hand
+// scoreS3 explicit IST instants and assert what the LOCAL calendar fields make
+// of them. A developer in another zone must get the same numbers as the demo
+// laptop.
 const result = spawnSync(
   process.execPath,
   ["--import", "tsx", "--test", ...files],
-  { stdio: "inherit", env: { ...process.env, TZ: "Asia/Kolkata" } },
+  {
+    stdio: "inherit",
+    env: { ...process.env, TZ: "Asia/Kolkata", PROJECT_TZ: "Asia/Kolkata" },
+  },
 );
 
 process.exit(result.status ?? 1);

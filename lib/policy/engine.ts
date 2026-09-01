@@ -179,19 +179,38 @@ export const ACCEPTED_TZ = [REQUIRED_TZ, "Asia/Calcutta"] as const;
  *
  * This must be set as a real environment variable in every environment that
  * runs the pipeline, Vercel Production included. See README.md, "Deployed".
+ *
+ * WHY `PROJECT_TZ` AND NOT `TZ`. Vercel reserves the name `TZ` — it cannot be
+ * created as a Project Environment Variable at all — so the deployed runtime
+ * stays UTC no matter what this guard demands of it. Two things follow. The
+ * guard checks a name we are actually permitted to set, and the date math
+ * stopped depending on the process zone at all: `getTodayIST()` in
+ * lib/scoring/components.ts applies the +05:30 to the INSTANT, so S3 reads
+ * Indian calendar days on a UTC server.
+ *
+ * That makes `PROJECT_TZ` a declaration rather than a mechanism — this
+ * deployment is operating on the IST calendar — and it still fails closed
+ * without it, deliberately. An environment where nobody has stated which
+ * calendar the case dates belong to does not get to score them.
  */
 function assertTimezonePinned(): void {
-  if ((ACCEPTED_TZ as readonly string[]).includes(process.env.TZ ?? "")) return;
+  if ((ACCEPTED_TZ as readonly string[]).includes(process.env.PROJECT_TZ ?? "")) {
+    return;
+  }
 
   throw new Error(
-    `TZ must be "${REQUIRED_TZ}" (or its older alias "Asia/Calcutta"), got ${
-      process.env.TZ === undefined ? "an unset TZ" : `"${process.env.TZ}"`
+    `PROJECT_TZ must be "${REQUIRED_TZ}" (or its older alias "Asia/Calcutta"), got ${
+      process.env.PROJECT_TZ === undefined
+        ? "an unset PROJECT_TZ"
+        : `"${process.env.PROJECT_TZ}"`
     }. ` +
-      "S3's time-windowed rows are evaluated against the process's local calendar " +
-      "date, so an unpinned timezone silently changes the score (SCORING_AND_POLICY.md " +
-      "section 5). Set TZ=" +
+      "S3's time-windowed rows are evaluated against the IST calendar date, so an " +
+      "undeclared timezone silently changes the score (SCORING_AND_POLICY.md " +
+      "section 5). Set PROJECT_TZ=" +
       REQUIRED_TZ +
-      " in the environment — in Vercel that is a Project Environment Variable, not .env.local.",
+      " in the environment — in Vercel that is a Project Environment Variable, not " +
+      ".env.local. It is PROJECT_TZ and not TZ because Vercel reserves TZ and will " +
+      "not let you create it.",
   );
 }
 

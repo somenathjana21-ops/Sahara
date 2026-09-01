@@ -20,8 +20,8 @@
  * ## Two orderings in here are safety properties, not style
  *
  * **`checkInput` (step 4) runs before `loadPolicy` (step 8), and the lexicon
- * branch returns without ever reaching it.** `loadPolicy` throws when `TZ` is
- * unpinned (assertTimezonePinned in lib/policy/engine.ts). That guard is right
+ * branch returns without ever reaching it.** `loadPolicy` throws when
+ * `PROJECT_TZ` is unset (assertTimezonePinned in lib/policy/engine.ts). That guard is right
  * — a silently wrong date is worse than a failed boot — but it is one more way
  * this handler can 500, and SAFETY_SPEC.md section 1 says the crisis path must
  * not depend on anything that can be misconfigured. Ordered the other way, one
@@ -64,6 +64,7 @@ import { isChangePoint, updateEWMA, zScore } from "@/lib/scoring/baseline";
 import { computeComposite } from "@/lib/scoring/composite";
 import {
   extractS5,
+  getTodayIST,
   q3IsCriticalTrigger,
   scoreS1,
   scoreS3,
@@ -422,7 +423,7 @@ export async function POST(request: Request): Promise<Response> {
 
   /*
    * FIRST loadPolicy in this file, and it is below Pass 1 on purpose — see the
-   * header and CHECKS_TM1.md T1-B5a. It throws on an unpinned TZ, which is
+   * header and CHECKS_TM1.md T1-B5a. It throws on an unset PROJECT_TZ, which is
    * fail-closed for the scored path: 503 with nothing written and a log line
    * naming the variable, rather than a composite that is quietly 40 points
    * light because the server read yesterday's date.
@@ -456,10 +457,13 @@ export async function POST(request: Request): Promise<Response> {
 
   /*
    * `today` is read once and passed in. S3's two time-windowed rows are
-   * evaluated against the process's LOCAL calendar date, which is why TZ is
-   * pinned above (SCORING_AND_POLICY.md section 5).
+   * evaluated against the IST calendar date, and this process is UTC on Vercel
+   * — `getTodayIST` carries the +05:30 itself, so a check-in taken between
+   * 00:00 and 05:30 IST is not scored against yesterday. A plain `new Date()`
+   * here drops both time-windowed rows at once (SCORING_AND_POLICY.md
+   * section 5).
    */
-  const today = new Date();
+  const today = getTodayIST();
   const caseRow = await db.loadCase(person.id);
 
   const s1 = scoreS1(structured);

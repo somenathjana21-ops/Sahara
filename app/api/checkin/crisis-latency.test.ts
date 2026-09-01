@@ -337,20 +337,20 @@ test("the model is never contacted on the crisis path (T1-B6)", async () => {
   );
 });
 
-test("an unpinned TZ cannot 500 a person in crisis (T1-B5a)", async () => {
+test("an unset PROJECT_TZ cannot 500 a person in crisis (T1-B5a)", async () => {
   const { db } = fakeDb({ person: person(), consent });
   __setDbForTests(db);
   hangFetch();
 
   /*
-   * `loadPolicy()` throws without TZ pinned (assertTimezonePinned in
+   * `loadPolicy()` throws without PROJECT_TZ set (assertTimezonePinned in
    * lib/policy/engine.ts). This is the executable form of T1-B5a: with the
    * variable removed, the crisis path must still answer 200 with resources,
    * which is only possible if `checkInput` runs strictly before `loadPolicy`
    * and the lexicon branch returns before reaching it.
    */
-  const saved = process.env.TZ;
-  delete process.env.TZ;
+  const saved = process.env.PROJECT_TZ;
+  delete process.env.PROJECT_TZ;
   try {
     const response = await POST(crisisRequest());
     const body = (await response.json()) as { tier: string; resources?: unknown[] };
@@ -359,8 +359,8 @@ test("an unpinned TZ cannot 500 a person in crisis (T1-B5a)", async () => {
     assert.equal(body.tier, "CRITICAL");
     assert.ok(body.resources && body.resources.length > 0);
   } finally {
-    if (saved === undefined) delete process.env.TZ;
-    else process.env.TZ = saved;
+    if (saved === undefined) delete process.env.PROJECT_TZ;
+    else process.env.PROJECT_TZ = saved;
   }
 });
 

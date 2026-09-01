@@ -104,7 +104,7 @@ produce the 503 this check used to require.
 **Pass:** HTTP 200 with tier `CRITICAL` and the crisis `resources` array
 present. **A 503 is now a FAIL.**
 **On a 503:** it is no longer the safe answer, it is an unconfigured
-deployment — check `TZ`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and
+deployment — check `PROJECT_TZ`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and
 `STAFF_PASSCODE` in Vercel Production. Note that a 503 from the crisis path
 specifically should be impossible: Pass 1 runs before `loadPolicy` and returns
 without it (T1-B5a), so a lexicon hit answers even on a misconfigured server.
@@ -144,14 +144,18 @@ the word boundaries in T1-E4.
 **Run:** read `app/api/checkin/route.ts` and report the line numbers of every `checkInput` and `checkOutput` call.
 **Pass:** `checkInput` appears **before** any `lib/llm` call, and `checkOutput` **after** it and before the response is returned. Report both line numbers as evidence.
 
-### T1-B5a · TZ failure cannot reach a person in crisis — BLOCKER
+### T1-B5a · PROJECT_TZ failure cannot reach a person in crisis — BLOCKER
 **Expected result until it lands: `DEFERRED`** — closed by TM1_GUIDE.md section 7, Day 4, Prompt 9 (step 4 vs step 8).
 **Run:** read `app/api/checkin/route.ts` and report the line numbers of the `checkInput` call and the first `loadPolicy` call.
 **Pass:** `checkInput` runs **strictly before** `loadPolicy`, and the lexicon-hit branch returns crisis resources **without** reaching `loadPolicy`. Quote both line numbers and the early `return`.
 
-`loadPolicy()` throws when `TZ` is unpinned (`assertTimezonePinned` in
-`lib/policy/engine.ts`). That is deliberate — a wrong date is worse than a
-failed boot — but it puts a **new way for the route to 500** in front of
+`loadPolicy()` throws when `PROJECT_TZ` is unset (`assertTimezonePinned` in
+`lib/policy/engine.ts`). The variable is `PROJECT_TZ` and not `TZ` because
+Vercel reserves that name; the date math itself no longer depends on the process
+zone (`getTodayIST()` in `lib/scoring/components.ts`), but the declaration is
+still required and still fails closed. That is deliberate — a wrong date is
+worse than a failed boot — but it puts a **new way for the route to 500** in
+front of
 everything downstream of it. If policy loading is ordered before Pass 1, then a
 single missing environment variable turns "I want to kill myself" into an HTTP
 500 with no helpline number in it.
@@ -416,14 +420,21 @@ The URL is in README.md under "Deployed". It is not a secret and nobody should
 have to be asked for it.
 **Pass:** HTTP 200 with real data. Every env var set in production, not just in `.env.local`.
 
-**Then, separately: verify `TZ` is set for all three Vercel environments —
-Production, Preview AND Development.** Run `vercel env ls` and paste the output,
-or attach the Project Environment Variables screenshot. A variable set for
-Production only will pass every check on this list and then produce a different
-S3 the first time anyone opens a Preview deployment.
+**Then, separately: verify `PROJECT_TZ` is set for all three Vercel
+environments — Production, Preview AND Development.** Run `vercel env ls` and
+paste the output, or attach the Project Environment Variables screenshot. A
+variable set for Production only will pass every check on this list and then
+503 the scored path the first time anyone opens a Preview deployment.
+
+**It is `PROJECT_TZ`, not `TZ`.** Vercel reserves `TZ` and will not accept it
+as a Project Environment Variable, so a checklist run that reports "TZ is set"
+is reporting on something else. The runtime stays UTC by design;
+`getTodayIST()` in `lib/scoring/components.ts` carries the +05:30, and
+`PROJECT_TZ` is the declaration `loadPolicy()` refuses to run without.
 
 **A green local test suite cannot prove this and must not be offered as
-evidence.** `scripts/run-tests.mjs` injects `TZ=Asia/Kolkata` into the test
-process precisely so the suite is reproducible across machines, which means the
-suite passes identically whether or not the deployed environment has the
-variable at all. The only evidence that counts here comes from Vercel.
+evidence.** `scripts/run-tests.mjs` injects `PROJECT_TZ=Asia/Kolkata` (and
+`TZ`) into the test process precisely so the suite is reproducible across
+machines, which means the suite passes identically whether or not the deployed
+environment has the variable at all. The only evidence that counts here comes
+from Vercel.

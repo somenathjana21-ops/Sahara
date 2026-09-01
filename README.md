@@ -19,12 +19,17 @@ failing closed, and T1-F3, deployed-not-local), and both previously stalled on
 change it here in the same commit — a stale URL here is worse than none, because
 a check will pass or fail against the wrong origin without saying so.
 
-**Production must set `TZ=Asia/Kolkata`** as a Vercel Project Environment
-Variable, not in `.env.local`. Vercel's runtime is UTC; S3's time-windowed rows
-are scored against the process's local calendar date, and between 00:00 and
-05:30 IST a UTC process reads the previous day and can drop both rows at once.
-`loadPolicy()` refuses to load without it rather than scoring a wrong date — see
-`assertTimezonePinned` in [`lib/policy/engine.ts`](lib/policy/engine.ts).
+**Production must set `PROJECT_TZ=Asia/Kolkata`** as a Vercel Project
+Environment Variable, not in `.env.local`. It is `PROJECT_TZ` and not `TZ`
+because Vercel reserves the name `TZ` and will not let you create it — the
+runtime stays UTC, so the +05:30 is applied to the instant instead, by
+`getTodayIST()` in [`lib/scoring/components.ts`](lib/scoring/components.ts).
+That matters because S3's time-windowed rows are scored against the IST calendar
+date, and between 00:00 and 05:30 IST a UTC reading lands on the previous day and
+can drop both rows at once. `PROJECT_TZ` is the declaration that this deployment
+is on the IST calendar, and `loadPolicy()` refuses to load without it rather than
+score a date nobody has vouched for — see `assertTimezonePinned` in
+[`lib/policy/engine.ts`](lib/policy/engine.ts).
 
 Architecture, scoring, and policy are **not** explained here. See
 [`docs/00_MVP_PLAN.md`](docs/00_MVP_PLAN.md),

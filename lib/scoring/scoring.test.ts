@@ -264,9 +264,12 @@ describe("S3 row 3 — the 7-day hearing window boundary", () => {
 
 describe("scoreS3 reads IST calendar days, not UTC ones", () => {
   it("the test process is pinned to Asia/Kolkata", () => {
-    // scripts/run-tests.mjs sets this, and lib/policy/engine.ts refuses to
-    // load a policy without it. If this assertion fails, every date-dependent
-    // number below is measuring the machine, not the code.
+    // scripts/run-tests.mjs pins the process zone. The policy engine has
+    // its own guard on PROJECT_TZ, a separate declaration, which does not
+    // move this; the tests below hand scoreS3 explicit IST instants and read
+    // them through LOCAL calendar fields, so they need the zone itself. If
+    // this assertion fails, every date-dependent number below is measuring
+    // the machine, not the code.
     // Either spelling of the zone is accepted; they are the same zone.
     assert.ok(
       (ACCEPTED_TZ as readonly string[]).includes(process.env.TZ ?? ""),

@@ -4,10 +4,12 @@
  * Owner: TM1. Implements docs/SCORING_AND_POLICY.md sections 2-6
  * (TM1_GUIDE.md section 5, Prompt 6).
  *
- * No I/O. No database, no fetch, no clock. `today` is passed in so an
- * assessment can be recomputed by hand from a document and a date, which is
- * the whole claim in SCORING_AND_POLICY.md section 1: "a judge should be able
- * to recompute a score by hand".
+ * No I/O. No database, no fetch. No scoring function reads the clock — `today`
+ * is passed in so an assessment can be recomputed by hand from a document and a
+ * date, which is the whole claim in SCORING_AND_POLICY.md section 1: "a judge
+ * should be able to recompute a score by hand". The one function here that CAN
+ * read a clock is `getTodayIST`, which produces that argument; it is called by
+ * the route, never by a score.
  *
  * Nothing here decides a tier. These functions return numbers and the reasons
  * for them; lib/policy/engine.ts turns a composite into a tier, and only
@@ -52,6 +54,49 @@ export function daysSince(iso: string, today: Date): number {
 /** Whole days from `today` to `iso`. Positive = in the future. */
 export function daysUntil(iso: string, today: Date): number {
   return -daysSince(iso, today);
+}
+
+/**
+ * India Standard Time as a fixed offset. UTC+05:30, one zone for the whole
+ * country, and no DST since 1945 — a constant, not a lookup.
+ */
+const IST_OFFSET_MS = (5 * 60 + 30) * 60_000;
+
+/**
+ * `today`, on the Indian calendar, from a process that is not on it.
+ *
+ * Vercel's runtime is UTC and `TZ` is a reserved variable name there, so the
+ * process zone cannot be moved into IST — see `assertTimezonePinned` in
+ * lib/policy/engine.ts. Between 00:00 and 05:30 IST a UTC process is still
+ * reading YESTERDAY, and both of S3's time-windowed rows are evaluated against
+ * that date: measured on the A-4471 case row at 2026-08-29T02:00+05:30, an IST
+ * reading scores S3 = 90 and a UTC one scores 50.
+ *
+ * So the offset is applied to the instant instead of to the environment. Shift
+ * epoch-now forward by +05:30 and the shifted instant's UTC fields ARE the IST
+ * wall clock; rebuild a Date carrying those as its LOCAL fields, because
+ * `dayOfDate` above reads local fields. The result's local calendar day is the
+ * Indian calendar day whatever zone the process is in, and on a machine already
+ * pinned to IST it round-trips to plain `now`.
+ *
+ * What comes back is a CALENDAR POSITION, for the day arithmetic above. Its
+ * epoch value is deliberately shifted off the real instant, so never store it
+ * as a timestamp and never compare it against one.
+ *
+ * `now` is injectable so this is testable and so the rest of the file stays
+ * honest about having no clock in it.
+ */
+export function getTodayIST(now: Date = new Date()): Date {
+  const shifted = new Date(now.getTime() + IST_OFFSET_MS);
+  return new Date(
+    shifted.getUTCFullYear(),
+    shifted.getUTCMonth(),
+    shifted.getUTCDate(),
+    shifted.getUTCHours(),
+    shifted.getUTCMinutes(),
+    shifted.getUTCSeconds(),
+    shifted.getUTCMilliseconds(),
+  );
 }
 
 /* ── S1 — self-report (SCORING_AND_POLICY.md section 3) ──────────────────── */
