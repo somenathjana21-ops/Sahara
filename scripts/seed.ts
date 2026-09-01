@@ -180,49 +180,127 @@ async function main() {
   console.log('\n✅ Seed complete!');
 }
 
+/**
+ * Deterministic per-filler UUIDs.
+ *
+ * The last group is twelve hex characters: nine '2's, a one-character SLOT that
+ * says which table the row belongs to, then the two-digit filler index.
+ *
+ * This replaces `filler.id.replace('01', '11')`. That only ever rewrote the
+ * FIRST occurrence of the literal "01", which exists in filler 01's id and in
+ * none of the others — so fillers 02-08 got a consent, a check-in, an
+ * assessment and an alert whose primary key was the PERSON's uuid. They landed
+ * in different tables so nothing errored, but the ids meant nothing, and a
+ * `cases` row derived the same way would have collided with the person id.
+ */
+function fillerUuid(slot: string, index: number): string {
+  const nn = String(index + 1).padStart(2, '0');
+  return `22222222-2222-2222-2222-${'2'.repeat(9)}${slot}${nn}`;
+}
+
+const SLOT = {
+  person: '2', // '...222222222201' — unchanged, so persons still upsert in place
+  consent: '1',
+  checkin: '3',
+  assessment: '4',
+  alert: '5',
+  case: '6',
+} as const;
+
 async function seedFillers() {
   const fillers = [
-    { id: '22222222-2222-2222-2222-222222222201', pseudonym: 'A-2301', tier: 'GREEN', composite: 15.5 },
-    { id: '22222222-2222-2222-2222-222222222202', pseudonym: 'A-3492', tier: 'GREEN', composite: 22.0 },
-    { id: '22222222-2222-2222-2222-222222222203', pseudonym: 'A-5671', tier: 'AMBER', composite: 42.0 },
-    { id: '22222222-2222-2222-2222-222222222204', pseudonym: 'A-7834', tier: 'GREEN', composite: 18.5 },
-    { id: '22222222-2222-2222-2222-222222222205', pseudonym: 'A-9123', tier: 'AMBER', composite: 38.0 },
-    { id: '22222222-2222-2222-2222-222222222206', pseudonym: 'A-1245', tier: 'GREEN', composite: 25.0 },
-    { id: '22222222-2222-2222-2222-222222222207', pseudonym: 'A-4567', tier: 'AMBER', composite: 45.0 },
-    { id: '22222222-2222-2222-2222-222222222208', pseudonym: 'A-8901', tier: 'GREEN', composite: 12.0 },
-  ];
+    { pseudonym: 'A-2301', tier: 'GREEN', composite: 15.5 },
+    { pseudonym: 'A-3492', tier: 'GREEN', composite: 22.0 },
+    { pseudonym: 'A-5671', tier: 'AMBER', composite: 42.0 },
+    { pseudonym: 'A-7834', tier: 'GREEN', composite: 18.5 },
+    { pseudonym: 'A-9123', tier: 'AMBER', composite: 38.0 },
+    { pseudonym: 'A-1245', tier: 'GREEN', composite: 25.0 },
+    { pseudonym: 'A-4567', tier: 'AMBER', composite: 45.0 },
+    { pseudonym: 'A-8901', tier: 'GREEN', composite: 12.0 },
+    /*
+     * The minor. `is_minor_flag` routes every check-in straight to a human and
+     * NOTHING is scored (CLAUDE.md rule 10, SAFETY_SPEC.md S10), which is why
+     * this persona deliberately gets no check-in, no assessment and no alert:
+     * a minor carrying an assessment row would contradict the rule the row
+     * exists to demonstrate, and would put them in the triage queue.
+     *
+     * Their purpose is to give T1-C10 a live target — POST a check-in for this
+     * person and expect the minor reply, a `checkins` row, and zero
+     * `assessments` rows. The eight above stay scored so the queue still shows
+     * eight fillers across varied tiers (T3-B5).
+     */
+    { pseudonym: 'A-6218', tier: 'GREEN', composite: 0, isMinor: true },
+  ] as const;
 
-  for (const filler of fillers) {
-    const consentId = filler.id.replace('01', '11');
-    const checkinId = filler.id.replace('01', '21');
+  // Dull, non-identifying case context. Every filler needs one: the staff read
+  // path throws "person <id> has no case row" without it and the person detail
+  // 500s, which is what CHECKS_TM3 T3-C1/T3-B5 walk straight into from the
+  // queue. S3 is computed from these columns, so they must be plausible.
+  const stages = ['investigation', 'trial', 'rehabilitation', 'compensation'] as const;
+  const categories = [
+    'Property — Land Dispossession',
+    'Property — Forced Eviction',
+    'Social — Boycott',
+    'Physical — Assault',
+  ] as const;
+
+  for (const [index, filler] of fillers.entries()) {
+    const personId = fillerUuid(SLOT.person, index);
+    const consentId = fillerUuid(SLOT.consent, index);
+    const checkinId = fillerUuid(SLOT.checkin, index);
+    const assessmentId = fillerUuid(SLOT.assessment, index);
+    const isMinor = 'isMinor' in filler && filler.isMinor === true;
 
     await supabase.from('persons').upsert({
-      id: filler.id,
+      id: personId,
       pseudonym: filler.pseudonym,
       language: 'hi',
-      baseline_mean: filler.composite,
-      baseline_var: 5.0,
-      checkin_count: 1,
+      is_minor_flag: isMinor,
+      // A minor is never scored, so they have no baseline to carry.
+      baseline_mean: isMinor ? null : filler.composite,
+      baseline_var: isMinor ? null : 5.0,
+      checkin_count: isMinor ? 0 : 1,
+    });
+
+    await supabase.from('cases').upsert({
+      id: fillerUuid(SLOT.case, index),
+      person_id: personId,
+      atrocity_category: categories[index % categories.length],
+      stage: stages[index % stages.length],
+      // Far outside the 7-day window, so no filler accidentally scores like
+      // the golden path (SCORING_AND_POLICY.md section 5, S3 row 3).
+      next_hearing_date: '2026-12-15',
+      adjournment_count: index % 3,
+      bail_status: 'not_applicable',
+      relief_due_date: null,
+      relief_paid: true,
+      social_boycott_flag: false,
+      last_intimidation_report: null,
+      opened_at: '2026-02-01',
     });
 
     await supabase.from('consents').upsert({
       id: consentId,
-      person_id: filler.id,
+      person_id: personId,
       capture_method: 'tap',
     });
 
+    // A minor is routed to a human, never scored: no check-in, no assessment,
+    // no alert, and so no row in the triage queue.
+    if (isMinor) continue;
+
     await supabase.from('checkins').upsert({
       id: checkinId,
-      person_id: filler.id,
+      person_id: personId,
       consent_id: consentId,
       channel: 'chat',
       structured: { q1: 1, q2: 1, q3: 0 },
     });
 
     await supabase.from('assessments').upsert({
-      id: filler.id.replace('01', '31'),
+      id: assessmentId,
       checkin_id: checkinId,
-      person_id: filler.id,
+      person_id: personId,
       components: { s1: 30, s2: 20, s3: 25, s4: 0, s5: 15 },
       contributions: { s1: 10.5, s2: 5.0, s3: 6.25, s4: 0, s5: 0 },
       composite: filler.composite,
@@ -238,16 +316,20 @@ async function seedFillers() {
     // Create alerts for AMBER cases
     if (filler.tier === 'AMBER') {
       await supabase.from('alerts').upsert({
-        id: filler.id.replace('01', '41'),
-        assessment_id: filler.id.replace('01', '31'),
-        person_id: filler.id,
+        id: fillerUuid(SLOT.alert, index),
+        assessment_id: assessmentId,
+        person_id: personId,
         tier: 'AMBER',
         sla_minutes: 1440, // 24 hours
       });
     }
   }
 
-  console.log(`   Added ${fillers.length} filler personas`);
+  const minors = fillers.filter((f) => 'isMinor' in f && f.isMinor === true);
+  console.log(
+    `   Added ${fillers.length} filler personas ` +
+      `(${fillers.length - minors.length} scored, ${minors.length} minor, all with a case row)`,
+  );
 }
 
 main().catch(console.error);

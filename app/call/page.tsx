@@ -17,22 +17,35 @@ import { CrisisPanel } from '@/components/ui/CrisisPanel';
 import { Button } from '@/components/ui/Button';
 import { t } from '@/components/ui/i18n';
 import type { CheckInResponse, Language } from '@/types/contract';
+import { type CallState, recordAnswer, reduceKeyPress } from './state';
 
 const CRISIS_RESOURCES = [
   { label: 'NHAA — National Helpline Against Atrocities', phone: '14566' },
   { label: 'Tele-MANAS — Mental health support', phone: '14416' },
 ];
 
-type CallState =
-  | 'idle'
-  | 'connecting'
-  | 'consent'
-  | 'q1'
-  | 'q2'
-  | 'q3'
-  | 'open_question'
-  | 'completed'
-  | 'crisis';
+/**
+ * What the line says on entering each state. Unchanged wording — lifted out of
+ * handleKeyPress so the transition itself could move to ./state.ts.
+ */
+const PROMPTS: Partial<Record<CallState, Record<Language, string>>> = {
+  q1: {
+    hi: 'प्रश्न 1: अभी आप कितना सुरक्षित महसूस करते हैं? 0 से 4 दबाएं।',
+    en: 'Question 1: How safe do you feel right now? Press 0 to 4.',
+  },
+  q2: {
+    hi: 'प्रश्न 2: आप कितनी अच्छी तरह सो पा रहे हैं? 0 से 4 दबाएं।',
+    en: 'Question 2: How well have you been sleeping? Press 0 to 4.',
+  },
+  q3: {
+    hi: 'प्रश्न 3: आपको कितना समर्थन महसूस होता है? 0 से 4 दबाएं।',
+    en: 'Question 3: How much support do you feel you have? Press 0 to 4.',
+  },
+  open_question: {
+    hi: 'अपनी स्थिति के बारे में कुछ बताएं। बोलने के लिए माइक दबाएं, या नीचे टाइप करें।',
+    en: 'Please share how you are doing. Tap the mic to speak, or type below.',
+  },
+};
 
 function CallPageInner() {
   const searchParams = useSearchParams();
@@ -105,55 +118,24 @@ function CallPageInner() {
     );
   }
 
-  // Keypad press handler
+  // Keypad press handler. The decision is in ./state (pure, testable without a
+  // DOM — CHECKS_TM3 T3-D8); this only carries it out.
   function handleKeyPress(key: string) {
+    const action = reduceKeyPress(callState, key);
+
     // 0 is ALWAYS panic key
-    if (key === '0') {
+    if (action.kind === 'panic') {
       handlePanicKey();
       return;
     }
 
-    if (callState === 'consent' && key === '1') {
-      setCallState('q1');
-      speak(
-        lang === 'hi'
-          ? 'प्रश्न 1: अभी आप कितना सुरक्षित महसूस करते हैं? 0 से 4 दबाएं।'
-          : 'Question 1: How safe do you feel right now? Press 0 to 4.'
-      );
-    } else if (callState === 'q1') {
-      const val = parseInt(key);
-      if (val >= 0 && val <= 4) {
-        setAnswers([val]);
-        setCallState('q2');
-        speak(
-          lang === 'hi'
-            ? 'प्रश्न 2: आप कितनी अच्छी तरह सो पा रहे हैं? 0 से 4 दबाएं।'
-            : 'Question 2: How well have you been sleeping? Press 0 to 4.'
-        );
-      }
-    } else if (callState === 'q2') {
-      const val = parseInt(key);
-      if (val >= 0 && val <= 4) {
-        setAnswers([...answers, val]);
-        setCallState('q3');
-        speak(
-          lang === 'hi'
-            ? 'प्रश्न 3: आपको कितना समर्थन महसूस होता है? 0 से 4 दबाएं।'
-            : 'Question 3: How much support do you feel you have? Press 0 to 4.'
-        );
-      }
-    } else if (callState === 'q3') {
-      const val = parseInt(key);
-      if (val >= 0 && val <= 4) {
-        setAnswers([...answers, val]);
-        setCallState('open_question');
-        speak(
-          lang === 'hi'
-            ? 'अपनी स्थिति के बारे में कुछ बताएं। बोलने के लिए माइक दबाएं, या नीचे टाइप करें।'
-            : 'Please share how you are doing. Tap the mic to speak, or type below.'
-        );
-      }
+    if (action.kind === 'ignore') return;
+
+    if (action.answer !== null) {
+      setAnswers((prev) => recordAnswer(prev, action.answerIndex, action.answer!));
     }
+    setCallState(action.next);
+    speak(PROMPTS[action.next]?.[lang] ?? '');
   }
 
   // Toggle voice recording
