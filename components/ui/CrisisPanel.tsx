@@ -7,10 +7,12 @@
 // tier === 'CRITICAL', this must render on the VERY NEXT render — no
 // useEffect fetch, no animation, no waitFor. It renders directly from
 // response.resources, nothing fetched afterward.
+//
+// lang is passed as a prop from the caller (who already knows it from
+// useSearchParams). This keeps CrisisPanel free of hooks so it renders
+// synchronously and is testable without a React context.
 
-"use client";
-
-import { useSearchParams } from "next/navigation";
+import React from "react";
 import { t } from "./i18n";
 import type { Language } from "@/types/contract";
 
@@ -23,12 +25,10 @@ interface CrisisResource {
 interface CrisisPanelProps {
   resources: CrisisResource[];
   onTalkToPerson: () => void;
+  lang?: Language;
 }
 
-export function CrisisPanel({ resources, onTalkToPerson }: CrisisPanelProps) {
-  const searchParams = useSearchParams();
-  const lang = ((searchParams?.get("lang") === "hi" ? "hi" : "en")) as Language;
-
+export function CrisisPanel({ resources, onTalkToPerson, lang = "en" }: CrisisPanelProps) {
   return (
     <aside
       role="complementary"

@@ -10,7 +10,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary: "bg-accent text-white",
   quiet: "bg-transparent text-ink border border-line",
-  danger: "bg-alert text-white",
+  danger: "bg-red-700 text-white",
 };
 
 export function Button({ variant = "primary", className = "", ...props }: ButtonProps) {

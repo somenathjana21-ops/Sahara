@@ -65,7 +65,7 @@ export default async function StaffQueuePage() {
                     <p className="text-sm text-ink-soft">
                       Composite: {item.assessments.composite.toFixed(1)}
                       {item.assessments.change_point && (
-                        <span className="ml-2 text-alert">↑ Change point</span>
+                        <span className="ml-2 text-red-700">↑ Change point</span>
                       )}
                     </p>
                   </div>

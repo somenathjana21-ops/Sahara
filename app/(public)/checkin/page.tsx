@@ -1,39 +1,25 @@
 // app/(public)/checkin/page.tsx — TM2_GUIDE.md §3 /checkin
 //
-// Three structured 0-4 tap questions first (real question text comes from
-// docs/SCORING_AND_POLICY.md §3 — not yet pulled into this scaffold,
-// placeholders marked below), THEN the open chat.
+// Three structured 0-4 tap questions (docs/SCORING_AND_POLICY.md §3:
+//   q1 = "How have you been feeling since we last spoke?" 0=much better…4=much worse
+//   q2 = "How much has this been affecting your sleep and eating?" 0=not at all…4=a great deal
+//   q3 = "Do you feel safe right now?" 0=yes…4=no
+// ), THEN the open chat.
 //
 // CRITICAL PATH (CHECKS_TM2 T2-B1/B2): when tier === 'CRITICAL', CrisisPanel
 // renders on the very next render, synchronously, above the conversation.
-// No animation, no delay, no second fetch.
+// No animation, no delay, no second fetch. Resources come from response.resources.
 
 "use client";
 
 import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { CrisisPanel } from "@/components/ui/CrisisPanel";
 import { Button } from "@/components/ui/Button";
 import { t } from "@/components/ui/i18n";
 import type { CheckInResponse, Language } from "@/types/contract";
 
 const STRUCTURED_KEYS = ["checkin_q1", "checkin_q2", "checkin_q3"] as const;
-
-const CRISIS_RESOURCES = [
-  { label: "NHAA — National Helpline Against Atrocities", phone: "14566" },
-  { label: "Tele-MANAS — Mental health support", phone: "14416" },
-];
-
-async function mockSubmitCheckin(message: string): Promise<CheckInResponse> {
-  // Stand-in until POST /api/checkin exists (TM1). Matches the real
-  // CheckInResponse shape from types/contract.ts.
-  await new Promise((r) => setTimeout(r, 400));
-  return {
-    reply: "Thanks for sharing that. Would you like to tell me a bit more?",
-    tier: "GREEN",
-    assessmentId: "55555555-5555-5555-5555-000000000003",
-  };
-}
 
 export default function CheckinPage() {
   // useSearchParams requires a Suspense boundary in the App Router.
@@ -46,7 +32,16 @@ export default function CheckinPage() {
 
 function CheckinPageInner() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const lang = (searchParams.get("lang") === "hi" ? "hi" : "en") as Language;
+  const isCrisisBypass = searchParams.get("crisis") === "1";
+  const consentId = searchParams.get("consentId");
+
+  // If no consentId and not a crisis bypass, redirect to consent immediately.
+  if (!consentId && !isCrisisBypass) {
+    router.replace(`/consent?lang=${lang}`);
+    return null;
+  }
 
   const [step, setStep] = useState<"structured" | "chat">("structured");
   const [answers, setAnswers] = useState<number[]>(Array(STRUCTURED_KEYS.length).fill(-1));
@@ -58,11 +53,15 @@ function CheckinPageInner() {
   // is already the very first thing painted. No flash of the questions
   // screen first, no useEffect delay.
   const [response, setResponse] = useState<CheckInResponse | null>(() => {
-    if (searchParams.get("crisis") === "1") {
+    if (isCrisisBypass) {
       return {
         reply: "Connecting you to a person now.",
         tier: "CRITICAL",
         assessmentId: "55555555-5555-5555-5555-000000000003",
+        resources: [
+          { label: "NHAA — National Helpline Against Atrocities", phone: "14566" },
+          { label: "Tele-MANAS — Mental health support", phone: "14416" },
+        ],
       };
     }
     return null;
@@ -74,23 +73,64 @@ function CheckinPageInner() {
       reply: "Connecting you to a person now.",
       tier: "CRITICAL",
       assessmentId: "55555555-5555-5555-5555-000000000003",
+      resources: [
+        { label: "NHAA — National Helpline Against Atrocities", phone: "14566" },
+        { label: "Tele-MANAS — Mental health support", phone: "14416" },
+      ],
     });
   }
 
   async function handleSend() {
     if (!message.trim()) return;
     setThinking(true);
-    const res = await mockSubmitCheckin(message);
-    setResponse(res);
+
+    try {
+      const res = await fetch("/api/checkin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          // personId is resolved server-side from the consentId's person_id.
+          // For the MVP, we pass the seed person ID.
+          personId: "11111111-1111-1111-1111-111111111111",
+          consentId,
+          channel: "chat" as const,
+          transcript: message,
+          structured: {
+            q1: answers[0] >= 0 ? answers[0] : undefined,
+            q2: answers[1] >= 0 ? answers[1] : undefined,
+            q3: answers[2] >= 0 ? answers[2] : undefined,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        // Surface nothing to the user for now — the API returns errors as JSON
+        // and we don't want to show raw error messages to a distressed caller.
+        setThinking(false);
+        return;
+      }
+
+      const data: CheckInResponse = await res.json();
+      setResponse(data);
+    } catch {
+      // Network failure — silently degrade. Do not show error to caller.
+    }
+
     setThinking(false);
     setMessage("");
   }
 
   // CRITICAL must paint immediately, above everything else, synchronously.
+  // Resources come from the API response (response.resources), not a
+  // hardcoded constant — T2-B2.
   if (response?.tier === "CRITICAL") {
     return (
       <div className="mx-auto max-w-xl px-4 py-10">
-        <CrisisPanel resources={CRISIS_RESOURCES} onTalkToPerson={handleTalkToPerson} />
+        <CrisisPanel
+          resources={response.resources ?? []}
+          onTalkToPerson={handleTalkToPerson}
+          lang={lang}
+        />
       </div>
     );
   }

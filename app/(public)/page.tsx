@@ -2,22 +2,58 @@
 //
 // One screen, one message. No photographs of people anywhere — abstract
 // dot motif + whitespace only (hard rule, §1).
+//
+// SSR HELPLINES (T2-B3): The helpline numbers 14566 and 14416 MUST be
+// present in the static HTML payload so they render before JavaScript loads.
+// The static <section> at the bottom is server-rendered and visible even
+// with JS disabled.
 
-"use client";
-
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { Dot } from "@/components/ui/Dot";
-import { t } from "@/components/ui/i18n";
-import type { Language } from "@/types/contract";
+import { LandingClient } from "./LandingClient";
 
-function LandingPageInner() {
-  const searchParams = useSearchParams();
-  const lang = (searchParams.get("lang") === "hi" ? "hi" : "en") as Language;
+/**
+ * Static helpline section — renders in the HTML payload before JS loads.
+ * This is a Server Component (no "use client"), so the strings are present
+ * in the initial SSR output regardless of hydration.
+ */
+function StaticHelplines() {
+  return (
+    <section
+      aria-label="Emergency helplines"
+      className="mt-12 rounded-card border border-line bg-surface p-6"
+    >
+      <h2 className="text-sm font-semibold">
+        If you need to talk to someone right now
+      </h2>
+      <p className="mt-1 text-sm text-ink-soft">
+        These lines are free and available now.
+      </p>
+      <ul className="mt-3 space-y-2">
+        <li className="flex items-baseline justify-between gap-3 text-sm">
+          <span>NHAA — National Helpline Against Atrocities</span>
+          <a
+            href="tel:14566"
+            className="font-mono font-semibold underline underline-offset-2"
+          >
+            14566
+          </a>
+        </li>
+        <li className="flex items-baseline justify-between gap-3 text-sm">
+          <span>Tele-MANAS — Mental health support</span>
+          <a
+            href="tel:14416"
+            className="font-mono font-semibold underline underline-offset-2"
+          >
+            14416
+          </a>
+        </li>
+      </ul>
+    </section>
+  );
+}
 
+export default function LandingPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-16">
       <div className="relative">
@@ -25,55 +61,14 @@ function LandingPageInner() {
         <Dot color="dot-blue" size={8} className="absolute top-16 right-4" />
         <Dot color="calm" size={10} className="absolute -bottom-4 left-1/3" />
 
-        <h1 className="font-display leading-[1.05] tracking-tight text-[clamp(2.75rem,7vw,4.5rem)]">
-          {t("landing_headline", lang)}
-        </h1>
-        <p className="mt-4 max-w-md text-lg text-ink-soft">
-          {t("landing_subhead", lang)}
-        </p>
-
-        <p className="mt-6 max-w-md text-base text-ink-soft">
-          {t("landing_voluntary", lang)}
-        </p>
-
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link href={`/consent?lang=${lang}`}>
-            <Button variant="primary">{t("landing_start", lang)}</Button>
-          </Link>
-          <Link href={`/checkin?crisis=1&lang=${lang}`}>
-            <Button variant="danger">{t("landing_talk", lang)}</Button>
-          </Link>
-        </div>
+        {/* Client-interactive parts that need useSearchParams for lang */}
+        <Suspense fallback={null}>
+          <LandingClient />
+        </Suspense>
       </div>
 
-      <div className="mt-20 grid gap-4 sm:grid-cols-3">
-        <Card>
-          <h2 className="font-semibold">{t("landing_what_does", lang)}</h2>
-          <p className="mt-2 text-sm text-ink-soft">
-            {t("landing_what_does_body", lang)}
-          </p>
-        </Card>
-        <Card>
-          <h2 className="font-semibold">{t("landing_what_doesnt", lang)}</h2>
-          <p className="mt-2 text-sm text-ink-soft">
-            {t("landing_what_doesnt_body", lang)}
-          </p>
-        </Card>
-        <Card>
-          <h2 className="font-semibold">{t("landing_voluntary_title", lang)}</h2>
-          <p className="mt-2 text-sm text-ink-soft">
-            {t("landing_voluntary_body", lang)}
-          </p>
-        </Card>
-      </div>
+      {/* Static helplines — rendered server-side, always in the HTML payload */}
+      <StaticHelplines />
     </div>
-  );
-}
-
-export default function LandingPage() {
-  return (
-    <Suspense fallback={null}>
-      <LandingPageInner />
-    </Suspense>
   );
 }

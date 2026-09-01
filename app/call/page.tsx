@@ -217,6 +217,7 @@ function CallPageInner() {
         <CrisisPanel
           resources={CRISIS_RESOURCES}
           onTalkToPerson={() => {}}
+          lang={lang}
         />
         <Button
           variant="quiet"
@@ -330,7 +331,7 @@ function CallPageInner() {
                   disabled={callState === 'idle'}
                   className={`min-h-[56px] rounded-full border border-line font-mono text-lg font-semibold
                     hover:bg-bg active:scale-95 transition-all
-                    ${key === '0' ? 'bg-alert/10 text-alert border-alert' : 'bg-surface'}
+                    ${key === '0' ? 'bg-red-700/10 text-red-700 border-red-700' : 'bg-surface'}
                     ${callState === 'idle' ? 'opacity-40' : ''}`}
                 >
                   {key}

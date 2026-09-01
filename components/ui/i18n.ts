@@ -31,9 +31,9 @@ const translations = {
     consent_continue: "Continue",
 
     // Check-in
-    checkin_q1: "How safe do you feel right now?",
-    checkin_q2: "How well have you been sleeping?",
-    checkin_q3: "How much support do you feel you have around you?",
+    checkin_q1: "How have you been feeling since we last spoke?",
+    checkin_q2: "How much has this been affecting your sleep and eating?",
+    checkin_q3: "Do you feel safe right now?",
     checkin_continue: "Continue",
     checkin_placeholder: "Share as much or as little as you'd like…",
     checkin_send: "Send",
@@ -73,9 +73,9 @@ const translations = {
     consent_continue: "जारी रखें",
 
     // Check-in
-    checkin_q1: "अभी आप कितना सुरक्षित महसूस करते/करती हैं?",
-    checkin_q2: "आप कितनी अच्छी तरह सो पा रहे/रही हैं?",
-    checkin_q3: "आपको कितना समर्थन महसूस होता है?",
+    checkin_q1: "पिछली बार से अब तक आप कैसा महसूस कर रहे/रही हैं?",
+    checkin_q2: "इससे आपकी नींद और खान-पान पर कितना असर पड़ रहा है?",
+    checkin_q3: "क्या आप अभी सुरक्षित महसूस करते/करती हैं?",
     checkin_continue: "जारी रखें",
     checkin_placeholder: "जितना चाहें उतना साझा करें…",
     checkin_send: "भेजें",

@@ -7,8 +7,8 @@ import type { Tier } from "@/types/contract";
 const tierStyles: Record<Tier, string> = {
   GREEN: "bg-calm/10 text-calm",
   AMBER: "bg-accent/10 text-accent",
-  RED: "bg-alert/10 text-alert",
-  CRITICAL: "bg-alert text-white",
+  RED: "bg-red-700/10 text-red-700",
+  CRITICAL: "bg-red-700 text-white",
 };
 
 export function TierBadge({ tier }: { tier: Tier }) {

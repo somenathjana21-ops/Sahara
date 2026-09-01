@@ -168,7 +168,7 @@ export default async function PersonDetailPage({
             {caseData.last_intimidation_report && (
               <div className="col-span-2">
                 <p className="text-ink-soft">Last Intimidation Report</p>
-                <p className="font-medium text-alert">{caseData.last_intimidation_report}</p>
+                <p className="font-medium text-red-700">{caseData.last_intimidation_report}</p>
               </div>
             )}
           </div>
@@ -186,7 +186,7 @@ export default async function PersonDetailPage({
                 <TierBadge tier={a.tier} />
                 <span className="font-mono">{a.composite.toFixed(1)}</span>
                 {a.change_point && (
-                  <span className="text-alert font-semibold">↑ Change Point</span>
+                  <span className="text-red-700 font-semibold">↑ Change Point</span>
                 )}
                 <span className="text-ink-soft ml-auto">
                   {new Date(a.created_at).toLocaleDateString()}
@@ -210,7 +210,7 @@ export default async function PersonDetailPage({
                     {new Date(alert.created_at).toLocaleString()}
                   </span>
                 </div>
-                <span className={alert.acked_at ? 'text-calm' : 'text-alert font-semibold'}>
+                <span className={alert.acked_at ? 'text-calm' : 'text-red-700 font-semibold'}>
                   {alert.acked_at ? 'Acknowledged' : 'Pending'}
                 </span>
               </div>
